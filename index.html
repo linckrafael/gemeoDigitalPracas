@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DAV 3D - Zeladoria Urbana (Protótipo)</title>
+
+  <!-- Driver.js (Para o Tour Guiado Profissional) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
+<script src="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.js.iife.js"></script>
+
+  <!-- Fontes Premium para o Título Gêmeo Digital -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&family=Orbitron:wght@800&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS via CDN para o visual moderno e limpo -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js para os gráficos do Dashboard -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- ArcGIS API CSS e JS -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.29/"></script>
+  <link rel="stylesheet" href="style.css">  
+
+  <!-- fivocon -->
+   <link rel="icon" type="image/png" href="./favicon/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="./favicon/favicon.svg" />
+  <link rel="shortcut icon" href="./favicon/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./favicon/apple-touch-icon.png" />
+  <link rel="manifest" href="./favicon/site.webmanifest" />
+</head>
+<body>
+<!-- O Mapa 3D ocupando 100% do fundo -->
+  <main id="mapa-container" class="absolute inset-0 w-full h-full"></main>
+
+ <!-- SLIDER DE MESCLA DE MAPAS -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 bg-gradient-to-r from-[#15803d]/10 via-emerald-700/80 to-green-600/30 backdrop-blur-2xl border border-white/30 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.2)] px-6 py-1 rounded-full flex items-center gap-4 transition-all">
+    
+    <!-- Texto Esquerdo -->
+    <span class="text-xs font-bold text-white/70 uppercase tracking-wider drop-shadow-md">Mapa</span>
+    
+    <!-- Container do Slider + Traço Central -->
+    <div class="relative flex items-center w-48 lg:w-64">
+      
+      <!-- Mini Traço Sutil do Centro (50%) -->
+      <div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-[2px] h-3.5 bg-white/50 rounded-full pointer-events-none z-0"></div>
+      
+      <!-- A Barra Deslizante (Input) -->
+      <input type="range" id="slider-mescla-mapa" min="0" max="100" value="20" class="w-full accent-white h-0.5 bg-white/20 rounded-lg appearance-none cursor-pointer shadow-inner border border-white/10 relative z-10">
+    
+    </div>
+    
+    <!-- Texto Direito -->
+    <span class="text-xs font-bold text-white uppercase tracking-wider drop-shadow-md">Satélite</span>
+    
+  </div>
+
+<!-- Cabeçalho Slim Glassmorphism (Mais fino, Fundo em Degradê e Vidro Reforçado) -->
+<header class="absolute top-2 left-2 right-2 md:top-3 md:left-4 md:right-4 h-[55px] md:h-[55px] bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl backdrop-saturate-200 border border-white/20 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.4)] rounded-[28px] md:rounded-full z-20 flex items-center justify-between px-3 md:px-6 gap-2 select-none transition-all">
+    
+    <!-- Lado Esquerdo: Logo e Título -->
+    <div class="flex items-center gap-2 md:gap-4 shrink-0 min-w-0">
+        <!-- Logo ajustada milimetricamente para caber no header mais fino -->
+        <img src="./icones/logo-poa.png" class="h-[40px] md:h-[100px] w-auto object-contain shrink-0 drop-shadow-lg brightness-0 invert" alt="POA">
+        
+        <!-- Divisor sutil -->
+        <div class="w-px h-8 bg-white/30 mx-2 hidden sm:block rounded-full"></div>
+
+        <!-- Texto -->
+        <div class="flex flex-col justify-center w-[130px] md:w-auto whitespace-normal">
+            <!-- Título em Degradê -->
+            <span style="font-family: 'Orbitron', sans-serif;" class="font-black text-[12px] md:text-[18px] tracking-widest uppercase leading-tight drop-shadow-md bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent">
+             Gêmeo Digital
+            </span>
+            
+            <!-- Subtítulo -->
+            <span class="font-semibold text-white/90 text-[7px] md:text-[9.5px] tracking-[0.15em] uppercase leading-tight mt-0.5 md:mt-1 drop-shadow-sm">
+                Sistema de Gerenciamento de Praças e Parques
+            </span>
+        </div>
+      </div>
+
+    <!-- Centro: Busca -->
+    <div class="flex-1 flex justify-end md:justify-center mx-1 md:mx-4 shrink-0">
+        <div class="hidden md:flex relative items-center w-full max-w-[450px]">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-white/80 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <!-- Input levemente mais fino para acompanhar a proporção do header -->
+            <input type="text" id="input-pesquisa-global" placeholder="Buscar praça por nome, bairro ou rua..." class="w-full pl-11 pr-5 py-2 border border-white/20 rounded-full text-[13px] text-white bg-white/10 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/60 transition-all shadow-[inset_0_2px_8px_rgba(0,0,0,0.1)] hover:bg-white/20">
+        </div>
+
+        <!-- Lupa Mobile -->
+        <button onclick="toggleBuscaMobile()" class="md:hidden p-1.5 text-white/90 hover:text-white transition drop-shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </button>
+    </div>
+
+    <!-- Lado Direito: DAV -->
+    <div class="flex items-center gap-2 md:gap-3 shrink-0">
+        <div class="hidden lg:flex flex-col text-right">
+            <span class="font-black text-white text-[12px] md:text-[13px] tracking-wide leading-none drop-shadow-md">Diretoria de Áreas Verdes</span>
+            <span class="text-[8px] md:text-[9px] uppercase font-black text-emerald-200 mt-1 tracking-widest drop-shadow-sm">SMAMUS</span>
+        </div>
+        <!-- Logo DAV também reajustada para o espaço menor -->
+        <img src="./icones/logo-dav.png" class="h-7 md:h-[38px] w-auto max-w-[35px] md:max-w-none object-contain drop-shadow-lg" alt="DAV">
+    </div>
+</header>
+
+<!-- Popup de Busca Mobile (Abre abaixo do header) -->
+  <div id="popup-busca-mobile" class="hidden md:hidden absolute top-16 left-0 right-0 bg-[#15803d] border-b border-green-800 p-3 z-30 shadow-lg transition-all duration-200">
+      <div class="relative flex items-center w-full">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          </div>
+          <input type="text" id="input-pesquisa-mobile" placeholder="Buscar praça..." class="w-full pl-10 pr-4 py-2 border border-green-200/80 rounded-xl text-sm bg-white/90 focus:outline-none shadow-inner">
+          <button onclick="toggleBuscaMobile()" class="ml-3 text-green-200 hover:text-white font-bold text-sm tracking-wide">Cancelar</button>
+      </div>
+  </div>
+
+  <!-- WRAPPER GAVETA: Fundo transparente para o cabeçalho encostar direto no mapa -->
+ <div id="wrapper-gaveta" class="absolute top-24 bottom-6 right-[88px] z-20 w-[420px] transition-all duration-300 ease-in-out transform translate-x-12 opacity-0 pointer-events-none flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-white/30">
+    
+    <!-- CABEÇALHO DO PAINEL LATERAL: 100% idêntico ao Header Superior -->
+    <div class="flex justify-between items-center px-5 py-4 bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl backdrop-saturate-200 border-b border-white/20 shrink-0">
+      
+      <h3 id="titulo-painel-ativo" class="font-bold text-white uppercase tracking-wider text-[11px] flex items-center gap-2 drop-shadow-md">
+        <span id="icone-painel-ativo" class="text-base text-emerald-300"></span> 
+        <span id="texto-painel-ativo">Início</span>
+      </h3>
+      
+      <button onclick="minimizarPainel()" class="text-white/80 hover:text-white transition p-1.5 rounded-md hover:bg-white/10" title="Minimizar Menu">
+        <svg id="icone-fechar-gaveta" class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+      </button>
+
+    </div>
+
+    <!-- CONTAINER PRINCIPAL: O fundo branco de vidro desce para cá! -->
+    <div class="flex-1 overflow-y-auto p-6 relative bg-white/95 backdrop-blur-xl">
+      
+    
+
+      <!-- 2. CONTEÚDO MAPA -->
+      <div id="content-mapa" class="hidden animate-fade-in">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Estilos de Mapa</h2>
+        <div id="basemap-gallery-container"></div>
+      </div>
+
+      <!-- 3. CONTEÚDO OBRAS -->
+      <div id="content-obras" class="hidden animate-fade-in w-full">
+        
+        <!-- TELA 1: LISTA E FILTROS -->
+        <div id="tela-lista-obras">
+
+          <div class="w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 mb-4 text-center">
+              <h2 style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Obras nas praças e parques</h2>
+          </div>
+          
+          <!-- TOPO DA GESTÃO DE OBRAS (Sem o título antigo) -->
+          <div id="container-voltar-obras"></div>
+
+          <!-- BARRA DE PESQUISA EXCLUSIVA DE OBRAS -->
+          <div class="relative mb-4 shrink-0">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </div>
+              <input type="text" id="input-pesquisa-obras" oninput="window.renderizarPainelObras()" placeholder="Pesquisar obra, praça ou empreiteira..." class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-blue-500 shadow-sm transition">
+          </div>
+          
+          <!-- Filtros de Status -->
+          <div class="flex gap-1.5 mb-4 bg-gray-50 p-1.5 rounded-xl border border-gray-200 shadow-inner">
+            <button id="btn-filtro-obra-Todos" onclick="window.filtrarObras('Todos')" class="flex-1 text-[10px] font-bold py-1.5 rounded-lg transition bg-gray-800 text-white shadow-sm border border-gray-800">Todas</button>
+            <button id="btn-filtro-obra-EmExecucao" onclick="window.filtrarObras('Em Execução')" class="flex-1 text-[10px] font-bold py-1.5 rounded-lg transition bg-white text-gray-500 border border-transparent hover:bg-amber-50 hover:text-amber-700">Em Execução</button>
+            <button id="btn-filtro-obra-Planejado" onclick="window.filtrarObras('Planejado')" class="flex-1 text-[10px] font-bold py-1.5 rounded-lg transition bg-white text-gray-500 border border-transparent hover:bg-blue-50 hover:text-blue-700">Planejadas</button>
+            <button id="btn-filtro-obra-Concluido" onclick="window.filtrarObras('Concluído')" class="flex-1 text-[10px] font-bold py-1.5 rounded-lg transition bg-white text-gray-500 border border-transparent hover:bg-green-50 hover:text-green-700">Concluídas</button>
+          </div>
+
+          <!-- BOTÃO + NOVA OBRA POSICIONADO ABAIXO DOS FILTROS -->
+          <div class="mb-5">
+            <button onclick="abrirFormularioObra()" class="w-full bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 uppercase tracking-wider">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+              Nova Obra
+            </button>
+          </div>
+
+          <!-- MÁGICA DA ROLAGEM ÚNICA: Sem max-h e sem overflow -->
+          <div id="lista-todas-obras" class="space-y-4 pb-6"></div>
+        </div>
+
+        <!-- TELA 2: DETALHES -->
+        <div id="tela-detalhe-obra" class="hidden animate-fade-in">
+          <div class="flex justify-between items-center mb-4">
+            <button onclick="voltarParaListaObras()" class="text-sm text-blue-700 font-bold flex items-center hover:bg-blue-50 p-1.5 pr-3 rounded-lg transition">
+              ← Voltar
+            </button>
+            <div class="flex gap-2">
+              <button id="btn-editar-obra-ativa" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg transition border border-gray-200">Editar</button>
+              <button id="btn-deletar-obra-ativa" class="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition border border-red-200 shadow-sm">Excluir</button>
+            </div>
+          </div>
+          <!-- MÁGICA DA ROLAGEM ÚNICA -->
+          <div id="conteudo-detalhe-obra" class="space-y-4 pb-6"></div>
+        </div>
+
+        <!-- TELA 3: FORMULÁRIO -->
+        <div id="tela-formulario-obra" class="hidden animate-fade-in">
+          <button onclick="voltarParaListaObras()" class="text-sm text-blue-700 font-bold mb-4 flex items-center hover:bg-blue-50 p-1.5 pr-3 rounded-lg transition w-fit">
+            ← Cancelar
+          </button>
+          <h2 id="titulo-formulario-obra" class="text-lg font-bold text-gray-800 mb-4">Nova Obra</h2>
+          
+          <!-- MÁGICA DA ROLAGEM ÚNICA -->
+          <div class="space-y-3 bg-gray-50 p-4 rounded-xl border border-gray-200 pb-6">
+            <input type="hidden" id="form-obra-id">
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Selecione a Praça</label>
+              <select id="form-obra-praca" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500 bg-white"></select>
+            </div>
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Título da Obra</label>
+              <input id="form-obra-titulo" type="text" placeholder="Ex: Revitalização do Playground" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">Galeria de Fotos da Obra</label>
+              <div class="flex flex-col gap-2 p-2 border border-dashed border-gray-300 rounded-xl bg-white relative">
+                
+                <!-- Lista de fotos que vai aparecer ao adicionar -->
+                <div id="lista-fotos-obra-form" class="flex flex-col gap-2 max-h-40 overflow-y-auto"></div>
+                
+                <div class="flex gap-2 mt-1">
+                    <label class="flex-1 flex items-center justify-center gap-2 px-2 py-2 bg-emerald-50 text-emerald-700 rounded-lg cursor-pointer text-[10px] font-bold transition hover:bg-emerald-100 border border-emerald-200 shadow-sm uppercase tracking-wide">
+                       + Computador
+                       <input type="file" multiple accept="image/*" class="hidden" onchange="window.adicionarFotoObraPC(event)">
+                    </label>
+                    <button type="button" onclick="window.adicionarFotoObraURL()" class="flex-1 px-2 py-2 bg-white text-gray-600 rounded-lg border border-gray-300 transition hover:bg-gray-50 text-[10px] font-bold shadow-sm uppercase tracking-wide">
+                       + Link (URL)
+                    </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Empreiteira</label><input id="form-obra-empreiteira" type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500"></div>
+              <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Orçamento (R$)</label><input id="form-obra-orcamento" type="text" placeholder="Ex: 150.000,00" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Data Início</label><input id="form-obra-inicio" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500"></div>
+              <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Data Fim</label><input id="form-obra-fim" type="date" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Status</label>
+                <select id="form-obra-status" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500 bg-white">
+                  <option value="Planejado">Planejado</option><option value="Em Execução">Em Execução</option><option value="Concluído">Concluído</option>
+                </select>
+              </div>
+              <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Progresso (%)</label><input id="form-obra-progresso" type="number" min="0" max="100" value="0" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500"></div>
+            </div>
+            <div><label class="block text-[10px] font-bold text-gray-500 uppercase">Descrição do Projeto</label>
+              <textarea id="form-obra-desc" rows="3" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500"></textarea>
+            </div>
+            <div class="border-t border-gray-200 pt-3 mt-2">
+              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Checklist da Obra (Etapas)</label>
+              <div class="flex gap-2 mb-3">
+                <input id="input-nova-tarefa" type="text" placeholder="Ex: Revitalização do calçamento..." class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:border-blue-500">
+                <button type="button" onclick="adicionarTarefaChecklist()" class="bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-700 transition shadow-sm">Adicionar</button>
+              </div>
+              <ul id="lista-tarefas-form" class="space-y-2 max-h-32 overflow-y-auto"></ul>
+              <input type="hidden" id="form-obra-checklist">
+            </div>
+            <button onclick="salvarObraNoBanco()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition mt-2">Salvar Obra</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. CONTEÚDO INVENTÁRIO -->
+      <div id="content-inventario" class="hidden animate-fade-in w-full">
+        <div id="tela-lista-pracas" class="w-full">
+          <div class="w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 mb-4 text-center">
+              <h2 style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Praças e parques</h2>
+          </div>
+          <!--<p class="text-sm text-gray-500 mb-4">Selecione uma praça abaixo ou pesquise no cabeçalho do sistema.</p> -->
+          
+          <div class="relative mb-4 shrink-0">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </div>
+              <input type="text" id="input-pesquisa-local" placeholder="Filtrar praças nesta lista..." class="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 shadow-sm transition">
+          </div>
+
+          <!-- MÁGICA DA ROLAGEM ÚNICA -->
+          <div id="lista-pracas-dinamica" class="space-y-2 pb-4">
+              <p class="text-sm text-gray-500 text-center py-4">Carregando mapa de praças...</p>
+          </div>
+        </div>
+
+        <div id="tela-gestao-praca" class="hidden">
+          
+          <button onclick="voltarParaListaPracas()" class="text-[10px] text-slate-400 font-bold mb-4 flex items-center hover:text-slate-800 transition-colors uppercase tracking-widest gap-1 -ml-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg> 
+            Voltar
+          </button>
+          
+          <div class="w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 mb-4 text-center">
+    <h2 id="titulo-praca-ativa" style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Nome da Praça</h2>
+</div>
+          
+          <!-- NAVEGAÇÃO DE ABAS (2 Abas) -->
+          <div class="flex border-b border-slate-200 mb-5 relative">
+            <button id="btn-tab-geral" onclick="window.alternarAbaPraca('geral')" class="flex-1 pb-2 text-[10px] font-black uppercase tracking-widest text-emerald-600 border-b-2 border-emerald-500 transition-all">
+              Visão Geral
+            </button>
+            <button id="btn-tab-gestao" onclick="window.alternarAbaPraca('gestao')" class="flex-1 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 border-b-2 border-transparent hover:text-slate-600 transition-all">
+              Gestão
+            </button>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- ABA 1: VISÃO GERAL (Obra + Inventário 3D) -->
+          <!-- ========================================== -->
+          <div id="aba-geral" class="block animate-fade-in">
+            <!-- Container da Obra (Se houver) -->
+            <div id="status-obra-praca"></div>
+
+            <!-- Pesquisa -->
+            <div class="relative mb-5 group">
+              <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg class="w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </div>
+              <input type="text" id="input-pesquisa-itens" oninput="window.filtrarItensInventario(this.value)" placeholder="Buscar no inventário 3D..." class="w-full pl-11 pr-4 py-3.5 bg-white border border-slate-200/80 rounded-2xl text-sm focus:outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-500/10 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.02)] transition-all font-medium text-slate-700 placeholder-slate-400">
+            </div>
+            
+            <!-- Painel de Controles (Sanfona de Filtro) -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-[0_4px_15px_-3px_rgba(0,0,0,0.03)] mb-6 overflow-hidden transition-all">
+              
+              <!-- Cabeçalho Clicável da Sanfona -->
+              <div onclick="document.getElementById('conteudo-filtro-status').classList.toggle('hidden'); document.getElementById('seta-filtro-status').classList.toggle('-rotate-90')" class="flex justify-between items-center p-4 cursor-pointer hover:bg-slate-50 transition-colors select-none">
+                <div class="flex items-center gap-1.5">
+                   <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                   <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">Filtro de Status</span>
+                </div>
+                <!-- Seta Dinâmica (Inicia apontando para o lado) -->
+                <svg id="seta-filtro-status" class="w-4 h-4 text-slate-400 transition-transform duration-300 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+
+              <!-- Conteúdo do Filtro (Botões Magros) -->
+              <div id="conteudo-filtro-status" class="px-4 pb-4 pt-1 border-t border-slate-100 bg-white hidden">
+                <div class="flex gap-2 mt-2">
+                  <button id="btn-filtro-todos" onclick="window.aplicarFiltroStatus('Todos')" class="flex-1 text-[10px] font-black py-1.5 rounded-lg transition-all bg-slate-800 text-white shadow-md border border-slate-800">Todos</button>
+                  <button id="btn-filtro-ok" onclick="window.aplicarFiltroStatus('OK')" class="flex-1 text-[10px] font-black py-1.5 rounded-lg transition-all bg-slate-50 text-slate-500 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 shadow-sm">Operacional</button>
+                  <button id="btn-filtro-conserto" onclick="window.aplicarFiltroStatus('Necessita Conserto')" class="flex-1 text-[10px] font-black py-1.5 rounded-lg transition-all bg-slate-50 text-slate-500 border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-sm">Necessita conserto</button>
+                </div>
+              </div>
+
+            </div>
+            
+            <div id="lista-itens-dinamica" class="space-y-3 mt-4 pb-6"></div>
+          </div>
+
+          <!-- ========================================== -->
+          <!-- ABA 2: GESTÃO (Inventário SMAMUS + Inserção) -->
+          <!-- ========================================== -->
+          <div id="aba-gestao" class="hidden animate-fade-in">
+            <!-- Container do Inventário SMAMUS (Se houver) -->
+             
+            <div id="inventario-smamus-container"></div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4 shadow-sm">
+              <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-5">
+                <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                Adicionar Mobiliário
+              </h4>
+              <div class="flex flex-col gap-3 mb-6">
+                <input id="input-nome-item" type="text" placeholder="Nome (ex: Banco Central)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all font-medium text-slate-700">
+                <button onclick="abrirCatalogoModelos()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-black text-[11px] py-3 rounded-xl shadow-md transition-colors uppercase tracking-wider flex justify-center items-center gap-2">
+                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                  Abrir Catálogo 3D
+                </button>
+              </div>
+
+              <div class="pt-5 border-t border-slate-100">
+                <h4 class="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5 mb-4">
+                  <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                  Ações em Lote
+                </h4>
+                <button onclick="window.ativarFerramentaFloresta()" class="w-full bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-300 py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-colors flex justify-center items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+                    Plantar Floresta
+                </button>
+              </div>
+            </div>
+            
+            <p id="msg-instrucao" class="text-[11px] text-amber-700 font-bold hidden text-center bg-amber-50 p-3 rounded-xl border border-amber-200 shadow-sm animate-pulse"></p>
+          </div>
+        </div>
+      </div>
+      <!-- 5. CONTEÚDO DASHBOARD -->
+      <div id="content-dashboard" class="hidden animate-fade-in w-full pb-8">
+        
+        <!-- Cabeçalho Executivo do Dashboard -->
+         <div class="w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 mb-2 text-center">
+    <h2 id="dash-titulo" style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Visão Global</h2>
+</div>
+        <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-200">
+          
+          <span id="dash-badge" class="bg-slate-100 text-slate-700 text-[10px] font-bold px-2.5 py-1 rounded-sm uppercase tracking-wider border border-slate-300">Todo o Município</span>
+        </div>
+
+        <!-- Cards de Resumo Principais (Indicadores Macro) -->
+<div class="grid grid-cols-2 gap-3 mb-6">
+  
+  <!-- Card 1: Total de Praças -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all">
+    <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Praças</span>
+    <span id="dash-qtd-pracas" class="text-2xl font-black text-slate-900">0</span>
+  </div>
+  
+  <!-- Card 2: Mobiliários Ativos -->
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all">
+    <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mobiliários Ativos</span>
+    <span id="dash-qtd-itens" class="text-2xl font-black text-slate-900">0</span>
+  </div>
+  
+  <!-- Card 3: Investimento em Obras (A Nova Tarja Premium) -->
+  <div class="col-span-2 bg-gradient-to-r from-emerald-700 via-green-600 to-emerald-500 rounded-xl p-5 text-white shadow-[0_8px_25px_rgba(16,185,129,0.25)] border border-emerald-400/30 relative overflow-hidden flex justify-between items-center group transition-all hover:shadow-[0_8px_30px_rgba(16,185,129,0.4)]">
+    
+    <!-- Efeito de brilho de fundo (Dá um ar 3D ao passar o mouse) -->
+    <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl transition-transform duration-700 group-hover:scale-150 pointer-events-none"></div>
+
+    <div class="relative z-10">
+      <span class="block text-[9px] font-black text-emerald-100 uppercase tracking-widest mb-0.5 drop-shadow-sm">Investimento em Obras</span>
+      <span class="text-xs text-emerald-50/90 font-medium">Portfólio Consolidado</span>
+    </div>
+    
+    <!-- O seu ID original mantido para o Javascript -->
+    <span id="dash-orcamento" class="relative z-10 text-xl font-black tracking-tight drop-shadow-md">R$ 0,00</span>
+    
+  </div>
+  
+</div>
+
+        <!-- Seção: Inventário Detalhado por Categorias -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3 border-b border-slate-200 pb-1.5">
+            <h3 class="text-[11px] font-bold text-slate-800 uppercase tracking-widest">Inventário por Categoria</h3>
+            <span class="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Mapeamento em Tempo Real</span>
+          </div>
+          
+          <!-- MUDANÇA: grid-cols-1 para ocupar a largura inteira e dar espaço aos nomes -->
+          <div id="grid-categorias-dashboard" class="grid grid-cols-1 gap-2">
+            <!-- Os mini-cards serão injetados aqui -->
+          </div>
+        </div>
+
+        <!-- Gráfico de Status com Moldura Executiva -->
+        <div class="bg-white p-4 rounded-sm border border-slate-200 shadow-sm mb-4">
+          <h3 class="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-3 text-center border-b border-slate-100 pb-2">Status de Manutenção (Operacional vs Conserto)</h3>
+          <div class="relative h-44 w-full flex justify-center">
+            <canvas id="grafico-manutencao"></canvas>
+          </div>
+        </div>
+
+        <!-- Botão de Ação: Emitir Relatório (Estilo Glassmorphism Premium) -->
+        <button onclick="window.gerarRelatorioHTML()" class="w-full bg-gradient-to-r from-[#15803d]/90 via-emerald-700/90 to-green-900/90 backdrop-blur-xl border border-emerald-400/30 shadow-[0_8px_20px_-6px_rgba(21,128,61,0.5)] hover:shadow-[0_12px_25px_-6px_rgba(21,128,61,0.7)] hover:-translate-y-0.5 hover:border-emerald-300/60 text-white text-[10px] font-bold uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group">
+          
+          <!-- Ícone com cor levemente destacada e brilho -->
+          <svg class="w-4 h-4 text-emerald-200 drop-shadow-sm group-hover:text-white transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+          </svg>
+          
+          <span class="drop-shadow-md">Emitir Relatório Oficial</span>
+          
+        </button>
+      </div>
+
+    </div> <!-- FECHAMENTO CORRETO DA ROLAGEM PRINCIPAL -->
+  </div> <!-- FECHAMENTO CORRETO DO WRAPPER GAVETA -->
+  
+<!-- BARRA LATERAL -->
+<div id="barra-lateral" class="absolute right-6 z-30 w-16 flex flex-col items-center justify-center gap-3 transition-all duration-300 ease-in-out top-1/2 -translate-y-1/2 py-3 pointer-events-none">
+    
+
+    <!-- Botão 5: Dashboard -->
+    <button id="btn-dashboard" class="pointer-events-auto tab-btn relative w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-r from-[#15803d]/10 via-emerald-700/80 to-green-600/30 backdrop-blur-2xl border border-white/30 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.2)] text-white hover:border-white/60 transition-all duration-300 group" title="Dashboard Analítico">
+      <span class="barrinha absolute right-0 top-1/2 -translate-y-1/2 w-[3px] rounded-l-full bg-[#34d399] transition-all duration-300 h-0"></span>
+      <svg class="w-6 h-6 transition-transform duration-300 group-hover:scale-110 drop-shadow-sm" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+    </button>
+
+    <!-- Botão 4: Inventário -->
+    <button id="btn-inventario" class="pointer-events-auto tab-btn relative w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-r from-[#15803d]/10 via-emerald-700/80 to-green-600/30 backdrop-blur-2xl border border-white/30 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.2)] text-white hover:border-white/60 transition-all duration-300 group" title="Inventário 3D">
+      <span class="barrinha absolute right-0 top-1/2 -translate-y-1/2 w-[3px] rounded-l-full bg-[#34d399] transition-all duration-300 h-0"></span>
+      <svg class="w-9 h-9 fill-current transition-transform duration-300 group-hover:scale-110 drop-shadow-sm" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" x="0px" y="0px" >
+        <path d="M60,56h-12.92c-.15-1.22-.54-2.3-.93-3.35-.51-1.36-1.04-2.76-1.12-4.68-.02-.57-.02-1.16,0-1.83,.01-1.21,.03-2.66-.11-4.72,1.74-1.82,4.1-4.49,5.49-6.44,.1,0,.2,.01,.29,.01,.11,0,.23,0,.35,0,1.74-.09,3.24-.84,4.37-2.18,1.79-.23,3.41-1.43,4.23-3.15,.73-1.54,.67-3.25-.12-4.72,1.11-1.29,1.68-3.27,1.4-5.07-.25-1.63-1.16-2.91-2.58-3.65,.1-1.59-.42-3.1-1.43-4.14-.88-.91-2.06-1.38-3.39-1.38-.01,0-.03,0-.04,0-.63-1.83-1.91-3.27-3.58-4.03-1.99-.89-4.38-.74-6.81,.42-1.18-.92-2.9-1.31-4.53-.99-1.62,.32-2.93,1.27-3.7,2.67-1.39-.33-3.03-.07-4.28,.76-.9,.6-2.32,1.97-2.43,4.74-1.21,.08-2.3,.53-3.16,1.32-.88,.81-1.89,2.33-1.89,5.01-1.11,1.12-3.2,3.92-1.64,7.9,1.24,3.17,4.59,3.85,6.56,3.76,.9,.88,2,1.4,3.19,1.53,1.58,1.83,4.09,4.25,5.9,5.86,.01,.15,.01,.31,.03,.45,.3,3.17,.19,6.54,0,8.64-.08,.88-.37,2.38-.65,3.84-.25,1.32-.48,2.51-.6,3.4h-12.89v-4h3c.55,0,1-.45,1-1v-4c0-.55-.45-1-1-1h-3v-2h1c.55,0,1-.45,1-1v-6c0-.55-.45-1-1-1H8c-.55,0-1,.45-1,1v6c0,.55,.45,1,1,1h1v2h-3c-.55,0-1,.45-1,1v4c0,.55,.45,1,1,1h3v4H4c-.55,0-1,.45-1,1s.45,1,1,1H60c.55,0,1-.45,1-1s-.45-1-1-1Zm-15.32-17.25c-.08-.75-.16-1.34-.22-1.85-.13-1.06-.23-1.78-.25-3.05,.52-.12,1.06-.27,1.62-.46,.57,.44,1.41,.88,2.39,1.2-.99,1.28-2.31,2.82-3.54,4.16Zm-16.38-8.49c-.16,.02-3.85,.42-4.98-2.46-1.27-3.24,.79-5.42,1.45-6,.23-.2,.35-.49,.33-.79-.08-1.74,.35-3.1,1.24-3.92,.69-.64,1.62-.91,2.7-.77,.3,.04,.6-.06,.81-.27,.22-.21,.33-.5,.31-.8-.15-1.88,.38-3.27,1.51-4.02,1.09-.72,2.49-.69,3.25-.29,.26,.13,.56,.15,.83,.04,.27-.11,.48-.33,.58-.6,.57-1.66,1.88-2.15,2.61-2.29,1.23-.24,2.55,.13,3.22,.9,.31,.36,.83,.45,1.24,.22,2.11-1.17,4.07-1.4,5.67-.68,1.35,.61,2.33,1.88,2.69,3.48,.12,.51,.6,.85,1.13,.77,1.06-.17,1.95,.08,2.58,.72,.72,.74,1.03,1.96,.8,3.18-.09,.48,.18,.96,.64,1.13,1.16,.42,1.84,1.23,2.02,2.41,.24,1.55-.5,3.19-1.32,3.82-.21,.16-.35,.4-.38,.66-.04,.26,.04,.53,.2,.74,.79,1.02,.93,2.26,.39,3.4-.57,1.2-1.73,2-2.96,2.04-.31,0-.59,.16-.77,.4-.8,1.09-1.87,1.67-3.15,1.73-1.92,.1-3.76-.97-4.16-1.41-.19-.21-.46-.33-.74-.33-.11,0-.22,.02-.33,.06-4.33,1.53-7.75,1.26-9.89-.8-.21-.2-.49-.3-.79-.27-.29,.03-.55,.18-.72,.42-.49,.68-1.39,1.14-2.36,1.18-1.07,.05-2.05-.39-2.79-1.25-.22-.25-.55-.38-.87-.34Zm5.33,3.26c.59-.21,1.13-.51,1.59-.9,.54,.4,1.18,.77,1.94,1.06-.07,1.05-.12,2.12-.13,3.2-1.15-1.07-2.38-2.28-3.39-3.36Zm-24.63,4.49h14v4H9v-4Zm2,6h10v2H11v-2Zm-4,4H25v2H7v-2Zm4,8v-4h10v4H11Zm26.91,0c.12-.84,.34-1.98,.54-3.02,.29-1.5,.59-3.06,.68-4.03,.1-1.06,.39-4.86,0-9.01-.17-1.81-.13-3.84-.01-5.75,.91,.13,1.94,.16,3.09,.03,.03,1.16,.13,1.9,.26,2.94,.09,.68,.19,1.5,.3,2.67,.29,2.97,.27,4.82,.25,6.31,0,.71-.01,1.33,.01,1.93,.1,2.23,.7,3.86,1.24,5.29,.35,.92,.66,1.75,.8,2.64h-7.17Z"/>
+      </svg>
+    </button>
+    
+    <!-- Botão 3: Obras -->
+   <button id="btn-obras" class="pointer-events-auto tab-btn relative w-11 h-11 flex items-center justify-center rounded-full bg-gradient-to-r from-[#15803d]/10 via-emerald-700/80 to-green-600/30 backdrop-blur-2xl border border-white/30 shadow-[inset_0_1px_2px_rgba(255,255,255,0.4),0_8px_16px_rgba(0,0,0,0.2)] text-white hover:border-white/60 transition-all duration-300 group" title="Gestão de Obras">
+      <span class="barrinha absolute right-0 top-1/2 -translate-y-1/2 w-[3px] rounded-l-full bg-[#34d399] transition-all duration-300 h-0"></span>
+      <svg class="w-6 h-6 transition-transform duration-300 group-hover:scale-110 drop-shadow-sm" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z" />
+      </svg>
+    </button>
+    
+</div>
+
+  <div id="modal-catalogo" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="bg-white w-11/12 max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200">
+      
+      <div class="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
+        <h3 class="text-xl font-bold text-gray-800">Catálogo de Mobiliário Urbano</h3>
+        <button onclick="fecharCatalogoModelos()" class="text-gray-400 hover:text-red-500 transition text-2xl font-bold">&times;</button>
+      </div>
+      
+      <div id="grid-modelos" class="p-6 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-100/50">
+        </div>
+      
+    </div>
+  </div>
+
+
+<div id="modal-catalogo" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
+    <div class="bg-white w-11/12 max-w-3xl max-h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-gray-200">
+      
+      <!-- Cabeçalho do Modal 100% igual ao Header principal -->
+      <div class="flex justify-between items-center p-5 border-b border-white/20 bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl backdrop-saturate-200">
+        <h3 class="text-xl font-bold text-white drop-shadow-md">Catálogo de Mobiliário Urbano</h3>
+        <button onclick="fecharCatalogoModelos()" class="text-white/70 hover:text-white transition text-2xl font-bold">&times;</button>
+      </div>
+      
+      <div id="grid-modelos" class="p-6 overflow-y-auto grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-100/50">
+        </div>
+      
+    </div>
+  </div>
+  
+  <!-- NOVO TOOLTIP COM IMAGEM (Fixo à direita do objeto) -->
+  <div id="custom-tooltip" class="pointer-events-none fixed z-50 hidden flex-col bg-white/95 backdrop-blur-md border border-green-200/60 shadow-xl rounded-x transition-opacity duration-150 w-48 overflow-hidden">
+    
+    <!-- Imagem Real (Fica oculta se não houver foto) -->
+     <img id="tooltip-image" src="" class="w-full h-24 object-cover hidden rounded-t-xl" alt="Foto do local">
+    <!-- Textos -->
+    <div class="p-3 flex flex-col">
+        <span id="tooltip-title" class="text-xs font-bold text-gray-800 leading-tight"></span>
+        <span id="tooltip-status" class="text-[10px] text-gray-500 mt-1"></span>
+    </div>
+
+    <!-- Triângulo apontando para a ESQUERDA -->
+    <div class="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-3 bg-white/95 border-l border-b border-green-200/60 transform rotate-45"></div>
+  </div>
+
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+  <script src="script.js"></script>
+  
+  <!-- OVERLAY ESCURO -->
+  <div id="tour-overlay-global"></div>
+
+  <!-- CARD FLUTUANTE DO TOUR (Muda de posição dinamicamente) -->
+  <div id="tour-card-flutuante" class="fixed z-[99999] w-[340px] bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-700 ease-in-out opacity-0 pointer-events-none transform scale-95 origin-center">
+      
+      <!-- Área do Vídeo de Demonstração -->
+      <div class="w-full h-44 bg-gray-900 relative overflow-hidden">
+          <!-- O vídeo fica em loop, sem som e reproduz sozinho -->
+          <video id="tour-video" src="" autoplay loop muted playsinline class="w-full h-full object-cover opacity-90"></video>
+          
+          <!-- Gradiente sutil em cima do vídeo para o visual premium -->
+          <div class="absolute inset-0 bg-gradient-to-t from-gray-900/60 to-transparent"></div>
+          
+          <!-- Passo Atual (Badge sobre o vídeo) -->
+          <span id="tour-badge-passo" class="absolute top-3 left-3 bg-white/20 backdrop-blur-md border border-white/30 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shadow-sm">
+              Passo 1 de 3
+          </span>
+      </div>
+
+      <!-- Área de Texto e Controles -->
+      <div class="p-6">
+          <h3 id="tour-titulo" class="text-lg font-black text-gray-800 mb-2 leading-tight">Título do Passo</h3>
+          <p id="tour-texto" class="text-xs text-gray-500 leading-relaxed min-h-[3rem]">Descrição detalhada da ferramenta.</p>
+          
+          <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-100">
+              <!-- Botão Pular -->
+              <button onclick="encerrarTourProfissional()" class="text-[10px] font-bold text-gray-400 hover:text-red-500 transition uppercase tracking-wider">
+                  Pular Tour
+              </button>
+              
+              <!-- Botão Próximo -->
+              <button onclick="avancarPassoTour()" id="btn-avancar-tour" class="bg-gradient-to-r from-emerald-600 to-green-700 hover:from-emerald-500 hover:to-green-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center gap-2">
+                  Próximo <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+              </button>
+          </div>
+      </div>
+  </div>
+
+</body>
+</html>

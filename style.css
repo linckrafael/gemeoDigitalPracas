@@ -1,0 +1,257 @@
+/* Ajustes básicos de tela */
+html, body { padding: 0; margin: 0; height: 100%; width: 100%; overflow: hidden;}
+.esri-view { outline: none !important; }
+
+
+/* Garante que a linha desenhada fora do card seja vista */
+#custom-tooltip {
+  overflow: visible !important; 
+}
+
+/* =================================================================
+     ESTADO 1: GAVETA FECHADA (Padrão) - Estilo Glassmorphism (Header)
+     ================================================================= */
+  /* A barrinha fica oculta quando a gaveta está fechada */
+  #barra-lateral:not(.menu-aberto) .barrinha {
+    display: none !important; 
+  }
+
+  /* =================================================================
+     ESTADO 2: GAVETA ABERTA (.menu-aberto) - Estilo Minimalista
+     ================================================================= */
+  
+  /* 1. Remove o fundo 'glass' dos botões, tira bordas e sombras */
+  #barra-lateral.menu-aberto .tab-btn {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    color: #9ca3af !important; /* Muda ícones inativos para cinza */
+  }
+
+  /* 2. Mostra a barrinha lateral (oculta por padrão) */
+  #barra-lateral.menu-aberto .barrinha {
+    display: block; 
+    opacity: 0;
+  }
+
+  /* 3. Estilos de Hover (Gaveta Aberta) */
+  #barra-lateral.menu-aberto .tab-btn:hover {
+    color: #34d399 !important; /* Verde claro */
+  }
+  #barra-lateral.menu-aberto .tab-btn:hover .barrinha {
+    opacity: 0.8 !important;
+    height: 0.75rem !important;
+  }
+
+  /* 4. Estilos do Botão ATIVO (Gaveta Aberta) */
+  #barra-lateral.menu-aberto .tab-btn.active,
+  #barra-lateral.menu-aberto .tab-btn.active svg {
+    color: #34d399 !important; /* Força o verde claro absoluto no ícone */
+    background-color: transparent !important; 
+  }
+  
+  #barra-lateral.menu-aberto .tab-btn.active .barrinha {
+    height: 1.5rem !important; /* Deixa a barrinha alta */
+    opacity: 1 !important;     /* Garante que ela fique 100% visível */
+    background-color: #34d399 !important;
+  }
+
+
+/* 1. Haste Vertical (apontando do meio do rodapé do card para o objeto) */
+#custom-tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: -30px; /* Mesmo tamanho que subtraímos no JS (telaCoord.y - 30) */
+  left: 50%; /* Bem no centro horizontal do card */
+  width: 2px; /* Espessura da linha */
+  height: 30px; /* Comprimento da linha */
+  background-color: #22c55e;
+  transform: translateX(-50%); /* Centraliza na própria espessura */
+  z-index: -1;
+}
+
+/* 2. Bolinha cravada no modelo 3D */
+#custom-tooltip::after {
+  content: '';
+  position: absolute;
+  /* Desce o tamanho da linha (-30px) + ajusta o raio da bolinha para o pixel bater cravado */
+  bottom: -34px; 
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background-color: #15803d;
+  border: 2px solid white;
+  border-radius: 50%;
+  transform: translateX(-50%);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* ==========================================================================
+   RESPONSIVIDADE (MOBILE & TABLETS)
+   Ativado em telas menores que 900px
+   ========================================================================== */
+@media (max-width: 900px) {
+    /* 1. CABEÇALHO (Header) blindado */
+    header {
+        height: 65px !important; 
+        padding: 0 8px !important;
+        overflow: hidden !important; /* MÁGICA: Impede que qualquer coisa vaze da tela */
+    }
+    /* Logo da Prefeitura (Lado esquerdo) 
+    header div:first-child img {
+        height: 54px !important; 
+        width: auto !important;
+        max-width: 145px !important; 
+        object-fit: contain !important;
+    }
+*/
+    /* Logo da DAV (Lado direito) 
+    header div:last-child img {
+        height: 35px !important; 
+        width: auto !important;
+        max-width: 50px !important;
+        object-fit: contain !important;
+    }
+*/
+    /* 2. GAVETA PRINCIPAL */
+    #wrapper-gaveta {
+        width: 260px !important; 
+        right: 47px !important; /* CORREÇÃO FINAL: 45px (botões) + 2px (margem) = 47px exatos */
+        top: 75px !important; 
+        bottom: 80px !important; 
+        max-height: none !important; 
+    }
+
+    /* Reduz espaçamento interno da gaveta no mobile */
+    #wrapper-gaveta .p-6, #wrapper-gaveta .p-8 { padding: 14px !important; }
+
+    /* 3. BARRA LATERAL (Botões) */
+    #barra-lateral {
+        width: 45px !important;
+        right: 2px !important;
+    }
+    #barra-lateral.top-24 {
+        top: 75px !important;
+        bottom: 80px !important;
+        max-height: none !important;
+    }
+
+    /* 4. SLIDER INFERIOR (Mapa vs Satélite) */
+    .bottom-8.left-1\/2 {
+        bottom: 20px !important;
+        padding: 8px 16px !important;
+        width: 90% !important;
+        max-width: 320px !important;
+    }
+    #slider-mescla-mapa { width: 120px !important; }
+
+    /* 5. FORMULÁRIOS (Tudo em 1 coluna) */
+    .grid-cols-2 { grid-template-columns: 1fr !important; }
+    .max-h-\[65vh\], .max-h-\[70vh\] { max-height: 75vh !important; }
+}
+
+@media (max-width: 1250px) {
+    /* Esconde apenas o texto auxiliar mais longo da secretaria para garantir o layout */
+    header .text-green-200.tracking-widest {
+        display: none !important;
+    }
+}
+/*
+@media (max-width: 900px) {
+    /* Em tablets, escondemos o nome completo e deixamos só os logos e a busca  
+    header .hidden.md\:block {
+        display: none !important;
+    }
+}*/
+
+@media (min-width: 901px) and (max-width: 1480px) {
+    /* Apenas eleva o limite inferior da gaveta e da barra para não baterem no slider */
+    #wrapper-gaveta,
+    #barra-lateral.bottom-6 {
+        bottom: 90px !important; 
+    }
+}
+
+/* ==========================================================
+   CUSTOMIZAÇÃO DO TOUR E CORREÇÃO DE LARGURA (DRIVER.JS)
+   ========================================================== */
+
+/* 1. A Caixa Principal: Mais larga e com respiro premium */
+.driver-popover {
+    border-radius: 1rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    
+    /* A CORREÇÃO: Trava a largura exata, sem deixar esticar */
+    width: 400px !important; 
+    min-width: 400px !important;
+    max-width: 90vw !important; /* Proteção apenas para telas de celular */
+    
+    padding: 24px !important;
+}
+
+/* Título e Texto */
+.driver-popover-title {
+    font-family: 'SuaFonteEscolhida', sans-serif !important;
+    font-weight: 900 !important;
+    color: #15803d !important; 
+    font-size: 1.15rem !important;
+    margin-bottom: 8px !important;
+}
+.driver-popover-description {
+    color: #64748b !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+}
+
+/* 2. O Rodapé: Separa o texto dos botões */
+.driver-popover-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-top: 20px !important;
+}
+
+/* 3. O Texto "Passo 1 de 9" */
+.driver-popover-progress-text {
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+    margin: 0 !important;
+}
+
+/* 4. O Agrupamento dos 3 Botões na direita */
+.driver-popover-navigation-btns {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important; /* Espaço exato e limpo entre Pular, Voltar e Próximo */
+}
+
+/* 5. O Botão Pular */
+.btn-pular-tour {
+    background: transparent !important;
+    color: #94a3b8 !important; 
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    border: none !important;
+    padding: 4px 8px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+}
+.btn-pular-tour:hover {
+    color: #15803d !important;
+    text-decoration: underline !important;
+}
+
+/* 6. Os Botões Voltar e Próximo */
+.driver-popover-next-btn, .driver-popover-prev-btn {
+    background-color: #15803d !important;
+    color: white !important;
+    border-radius: 0.5rem !important;
+    text-shadow: none !important;
+    font-weight: bold !important;
+    border: none !important;
+}
+.driver-popover-close-btn {
+    color: #94a3b8 !important;
+}
