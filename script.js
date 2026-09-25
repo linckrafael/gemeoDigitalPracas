@@ -395,7 +395,8 @@
 
                     return new Graphic({
                         geometry: { type: "point", longitude: item.lon, latitude: item.lat, spatialReference: { wkid: 4326 } },
-                        attributes: { idVisual: item.id, nome: item.nome },
+                        // CORREÇÃO: Agora o 'status' viaja junto com o pino!
+                        attributes: { idVisual: item.id, nome: item.nome, status: item.status },
                         symbol: {
                             type: "point-3d",
                             verticalOffset: { screenLength: 25, maxWorldLength: 100, minWorldLength: 1 },
@@ -444,7 +445,8 @@
                                 
                                 novosPinos.push(new Graphic({
                                     geometry: g.geometry.clone(),
-                                    attributes: { isFocusPin: true },
+                                    // CORREÇÃO: Inserindo os dados de hover também nos pinos locais
+                                    attributes: { isFocusPin: true, idVisual: item.id, nome: item.nome, status: item.status },
                                     symbol: {
                                         type: "point-3d",
                                         verticalOffset: { screenLength: 35, maxWorldLength: 100, minWorldLength: 1 },
@@ -504,7 +506,7 @@
             let pracasAlvo = window.todasAsPracas || [];
             let itensAlvo = window.bancoDeDadosItens || [];
             let obrasAlvo = window.bancoDeDadosObras || [];
-            let titulo = "Visão Global";
+            let titulo = "Panorama Geral";
             let badge = "Todo o Município";
 
             // Se tem uma praça selecionada, filtra os dados SÓ para ela!
@@ -1732,24 +1734,33 @@
         window.renderizarPainelObras = function() {
           const divObras = document.getElementById('lista-todas-obras');
           const divVoltar = document.getElementById('container-voltar-obras');
+          const divAviso = document.getElementById('container-aviso-praca-obras'); // Novo controlador da caixa verde
           
           let conteudoCards = ''; 
-          if (divVoltar) divVoltar.innerHTML = ''; // Limpa o topo por padrão toda vez que recarrega
+          if (divVoltar) divVoltar.innerHTML = ''; // Limpa o topo 
+          if (divAviso) divAviso.innerHTML = '';   // Limpa a caixa inferior
 
           let obrasFiltradas = window.bancoDeDadosItens.filter(i => i.obra_titulo && i.obra_titulo.trim() !== "");
 
-          // 🔴 A MÁGICA DO TOPO: Se tem uma praça selecionada, injeta o botão lá na div container-voltar-obras
+          // 🔴 A MÁGICA DO TOPO: Separa o botão de voltar e a caixa verde da praça
           if (pracaAtivaId) {
               obrasFiltradas = obrasFiltradas.filter(o => String(o.praca) === String(pracaAtivaId));
               const praca = window.todasAsPracas.find(p => p.idOficial === pracaAtivaId);
               const nomePraca = praca ? praca.nome : 'Praça selecionada';
 
+              // INJETA SÓ O BOTÃO (Fica acima do título principal)
               if (divVoltar) {
                   divVoltar.innerHTML = `
                     <button onclick="window.limparFiltroPracaObras()" class="text-[10px] text-gray-500 font-bold mb-4 flex items-center hover:text-emerald-600 transition-colors uppercase tracking-widest gap-1 -ml-1 cursor-pointer relative z-50">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg> 
                       Voltar para todas as obras
                     </button>
+                  `;
+              }
+              
+              // INJETA SÓ A CAIXA VERDE (Fica abaixo do título principal)
+              if (divAviso) {
+                  divAviso.innerHTML = `
                     <div class="mb-5 w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 text-center">
                        <span class="text-[8px] font-black text-emerald-200 uppercase tracking-widest block mb-1 drop-shadow-sm">Obras localizadas em:</span>
                        <h3 style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">${nomePraca}</h3>
@@ -1781,72 +1792,73 @@
 
           obrasFiltradas.forEach(obra => {
             const cor = obterCorStatusObra(obra.obra_status);
-            const empreiteiraHtml = obra.obra_empreiteira && obra.obra_empreiteira.trim() !== "" 
-                ? `<div class="flex flex-col gap-0.5" title="Empreiteira: ${obra.obra_empreiteira}">
-                     <span class="text-[8px] font-black text-slate-500 uppercase tracking-widest">Responsável</span>
-                     <span class="text-[10px] font-bold text-slate-800 uppercase tracking-wide truncate w-28">${obra.obra_empreiteira}</span>
-                   </div>` 
-                : `<div></div>`; 
 
-            // A MÁGICA: Define o gradiente de fundo dinâmico baseado no status da Obra
+            // Define o gradiente de fundo dinâmico e a cor da barrinha
             let bgCardObra = 'from-slate-100/50 via-white to-slate-50/30';
             let hoverBorderObra = 'hover:border-slate-300';
+            let titleHover = 'group-hover:text-slate-900';
+            let bgProgresso = 'from-slate-400 to-slate-500';
             
             if (obra.obra_status === "Concluído") {
-                bgCardObra = 'from-[#15803d]/30 via-emerald-800/15 to-green-950/20'; // O Verde do Menu
+                bgCardObra = 'from-[#15803d]/30 via-emerald-800/15 to-green-950/20'; 
                 hoverBorderObra = 'hover:border-emerald-300';
+                titleHover = 'group-hover:text-emerald-800';
+                bgProgresso = 'from-emerald-400 to-emerald-600';
             } else if (obra.obra_status === "Em Execução") {
-                bgCardObra = 'from-[#b45309]/20 via-amber-800/10 to-orange-950/15'; // Âmbar / Laranja
+                bgCardObra = 'from-[#b45309]/20 via-amber-800/10 to-orange-950/15'; 
                 hoverBorderObra = 'hover:border-amber-300';
+                titleHover = 'group-hover:text-amber-900';
+                bgProgresso = 'from-amber-400 to-amber-500';
             } else if (obra.obra_status === "Planejado") {
-                bgCardObra = 'from-[#1d4ed8]/20 via-blue-800/10 to-sky-950/15'; // Azul
+                bgCardObra = 'from-[#1d4ed8]/20 via-blue-800/10 to-sky-950/15'; 
                 hoverBorderObra = 'hover:border-blue-300';
+                titleHover = 'group-hover:text-blue-900';
+                bgProgresso = 'from-blue-400 to-blue-600';
             }
 
             conteudoCards += `
-              <div onclick="abrirDetalheObra(${obra.id})" class="group relative bg-gradient-to-r ${bgCardObra} rounded-[24px] shadow-[0_4px_15px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 cursor-pointer overflow-hidden transition-all duration-500 hover:shadow-[0_15px_35px_-5px_rgba(0,0,0,0.12)] ${hoverBorderObra} hover:-translate-y-1 mt-4">
+              <div onclick="abrirDetalheObra(${obra.id})" class="group relative flex items-center gap-3 p-2 bg-gradient-to-r ${bgCardObra} rounded-xl shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] border border-slate-200/60 cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-[0_8px_20px_-4px_rgba(0,0,0,0.1)] hover:-translate-y-0.5 ${hoverBorderObra} mt-2.5">
                 
-                <div class="h-48 w-full relative overflow-hidden bg-slate-100/50">
-                   <img src="${window.obterUrlImagem(obra)}" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" alt="Foto da Obra">
-                   <div class="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-slate-900/40 to-transparent pointer-events-none"></div>
-                   
-                   <div class="absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black rounded-full uppercase backdrop-blur-md border ${cor} tracking-widest z-10 shadow-sm">
-                     <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse shadow-[0_0_5px_currentColor]"></span>
-                     ${obra.obra_status}
-                   </div>
+                <!-- Esquerda: Miniatura Quadrada (56x56px) -->
+                <div class="w-14 h-14 shrink-0 relative rounded-lg overflow-hidden bg-slate-100 border border-white/50 shadow-inner">
+                    <img src="${window.obterUrlImagem(obra)}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Foto da Obra">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
                 </div>
 
-                <div class="px-5 pb-5 pt-4 relative z-10">
-                  
-                  <div class="inline-flex items-center gap-1.5 mb-2.5 px-2.5 py-1 rounded-md bg-white/60 border border-white/80 shadow-sm backdrop-blur-sm">
-                    <svg class="w-3 h-3 text-slate-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    <h3 class="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none drop-shadow-sm">${obra.nome}</h3>
-                  </div>
-                  
-                  <p class="text-[16px] font-extrabold text-slate-800 line-clamp-2 mb-6 leading-snug tracking-tight">${obra.obra_titulo}</p>
-                  
-                  <!-- Caixa Interna com Vidro Fosco (Deixa o degradê vazar) -->
-                  <div class="mb-5 bg-white/60 backdrop-blur-md p-4 rounded-[16px] border border-white/50 shadow-sm group-hover:bg-white/80 transition-colors relative overflow-hidden">
-                    <div class="flex justify-between items-center text-[9px] font-bold mb-3">
-                       <span class="text-slate-600 uppercase tracking-widest">Avanço Físico</span>
-                       <span class="text-slate-900 font-black text-[11px]">${obra.obra_progresso}%</span>
+                <!-- Direita: Informações Ultra Enxutas -->
+                <div class="flex-1 min-w-0 flex flex-col justify-center py-0.5">
+                    
+                    <!-- Linha 1: Local -->
+                    <div class="flex items-center gap-1 min-w-0 mb-1">
+                        <svg class="w-3 h-3 text-slate-500 shrink-0 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate drop-shadow-sm">${obra.nome}</span>
                     </div>
-                    <div class="w-full bg-slate-200/70 rounded-full h-1 overflow-hidden">
-                      <div class="bg-gradient-to-r from-teal-400 via-emerald-500 to-green-600 h-full rounded-full transition-all duration-1000 relative" style="width: ${obra.obra_progresso}%">
-                        <div class="absolute right-0 top-0 bottom-0 w-4 bg-white/60 blur-[2px]"></div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div class="flex justify-between items-end">
-                    ${empreiteiraHtml}
-                    <!-- Botão Escuro Elegante (Combina com qualquer cor de fundo) -->
-                    <span class="text-[10px] font-black text-white bg-slate-800 border border-slate-700 px-4 py-2.5 rounded-[14px] shadow-sm group-hover:bg-slate-900 group-hover:shadow-md group-hover:scale-105 transition-all flex items-center gap-1.5 ${(!obra.obra_empreiteira || obra.obra_empreiteira.trim() === '') ? 'ml-auto' : ''}">
-                      ACESSAR
-                      <svg class="w-3.5 h-3.5 drop-shadow-sm group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
-                    </span>
-                  </div>
+                    <!-- Linha 2: Título da Obra + Badge de Status -->
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <h4 class="text-[12px] font-extrabold text-slate-800 leading-tight truncate ${titleHover} transition-colors">${obra.obra_titulo}</h4>
+                        
+                        <div class="flex items-center gap-1 px-1.5 py-0.5 text-[7px] font-black rounded uppercase border ${cor} tracking-widest shrink-0 shadow-sm leading-none bg-white/50 backdrop-blur-sm">
+                            <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse shadow-[0_0_5px_currentColor]"></span>
+                            ${obra.obra_status}
+                        </div>
+                    </div>
+
+                    <!-- Linha 3: Mini Barra de Progresso Super Fina -->
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <div class="w-16 bg-slate-200/80 rounded-full h-1.5 overflow-hidden shadow-inner shrink-0 border border-slate-300/50">
+                            <div class="bg-gradient-to-r ${bgProgresso} h-full rounded-full" style="width: ${obra.obra_progresso}%"></div>
+                        </div>
+                        <span class="font-black text-slate-600 text-[9.5px]">${obra.obra_progresso}%</span>
+                    </div>
+
                 </div>
+
+                <!-- Seta de Ação Discreta -->
+                <div class="shrink-0 text-slate-400 group-hover:text-slate-800 transition-colors pr-1">
+                    <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+                </div>
+                
               </div>
             `;
           });
@@ -1966,7 +1978,7 @@
       
       <!-- HEADER IMERSIVO COM FOTO E TÍTULO -->
       <div class="relative w-full h-48 rounded-2xl overflow-hidden shadow-md mb-5 border border-emerald-100/50 group select-none">
-          <img id="img-capa-obra-${obra.id}" src="${imgCapaInicial}" class="w-full h-full object-cover transition-all duration-300">
+          <img id="img-capa-obra-${obra.id}" src="${imgCapaInicial}" class="w-full h-full object-cover transition-all duration-300 cursor-pointer" onclick="window.abrirVisualizadorFotos('${obra.id}')" title="Clique para abrir a galeria">
           
           <!-- Gradiente escuro para dar leitura aos textos -->
           <div class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent pointer-events-none"></div>
@@ -1980,11 +1992,20 @@
             <button onclick="window.navegarCarrosselObra(${obra.id}, 1, event)" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white rounded-full p-1.5 backdrop-blur-sm transition-all z-20 opacity-0 group-hover:opacity-100 shadow-sm border border-white/20 outline-none">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
             </button>
-            <!-- Contador -->
-            <div id="contador-carrossel-obra-${obra.id}" class="absolute top-3 left-3 bg-black/50 border border-white/20 backdrop-blur-md text-white font-bold text-[9px] px-2.5 py-1 rounded-full z-20 shadow-sm pointer-events-none">
-                1 / ${galeriaObra.length}
-            </div>
           ` : ''}
+
+          <!-- NOVO: Controles Top-Left (Botão de Galeria e Contador) -->
+          <div class="absolute top-3 left-3 flex items-center gap-2 z-20">
+              <button onclick="window.abrirVisualizadorFotos('${obra.id}')" class="bg-black/50 hover:bg-black/80 border border-white/20 backdrop-blur-md text-white p-1.5 rounded-lg shadow-sm transition-all flex items-center justify-center group/btn" title="Abrir Galeria em Tela Cheia">
+                  <svg class="w-4 h-4 group-hover/btn:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              </button>
+              
+              ${temCarrossel ? `
+              <div id="contador-carrossel-obra-${obra.id}" class="bg-black/50 border border-white/20 backdrop-blur-md text-white font-bold text-[9px] px-2.5 py-1.5 rounded-full shadow-sm pointer-events-none flex items-center leading-none">
+                  1 / ${galeriaObra.length}
+              </div>
+              ` : ''}
+          </div>
 
           <!-- Badge de Status (O mesmo Dark Glass com LED dos cards) -->
           <div class="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black rounded-full uppercase backdrop-blur-md border ${cor} tracking-widest shadow-lg z-10 pointer-events-none">
@@ -2244,8 +2265,12 @@
                         <img src="${imgSrc}" class="w-12 h-12 object-cover rounded-lg border border-slate-300 shadow-sm">
                         ${badgeCapa}
                     </div>
-                    <div class="flex-1 flex flex-col gap-1">
+                    <div class="flex-1 flex flex-col gap-1.5">
                         <input type="text" value="${foto.desc || ''}" onchange="window.galeriaTemp[${index}].desc = this.value" placeholder="Breve descrição da foto..." class="w-full text-[10px] px-2 py-1.5 border border-slate-200 rounded-lg focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Data:</span>
+                            <input type="date" value="${foto.data || ''}" onchange="window.galeriaTemp[${index}].data = this.value" class="flex-1 text-[10px] px-2 py-1 border border-slate-200 rounded-md focus:border-emerald-500 outline-none">
+                        </div>
                     </div>
                     <button type="button" onclick="window.removerFotoObraForm(${index})" class="text-slate-400 hover:text-red-500 font-black px-2 transition-colors" title="Remover Foto">X</button>
                 </div>`;
@@ -2369,12 +2394,14 @@
                               const anexos = await window.camadaItensNuvem.queryAttachments({ objectIds: [objectIdFinal] });
                               const lista = anexos[objectIdFinal];
                               if (lista && lista.length > 0) {
-                                  jsonGaleria.push({ url: lista[lista.length - 1].url, desc: foto.desc || "" });
+                                  // AGORA SALVAMOS A DATA JUNTO
+                                  jsonGaleria.push({ url: lista[lista.length - 1].url, desc: foto.desc || "", data: foto.data || "" });
                               }
                           }
                       } catch(e) { console.error("Erro ao subir foto", e); }
                   } else if (foto.url) {
-                      jsonGaleria.push({ url: foto.url, desc: foto.desc || "" });
+                      // AGORA SALVAMOS A DATA JUNTO
+                      jsonGaleria.push({ url: foto.url, desc: foto.desc || "", data: foto.data || "" });
                   }
               }
               return jsonGaleria;
@@ -2981,17 +3008,17 @@ window.removerFotoGaleria = function(index) {
         
         window.obterGaleriaCompleta = function(item) {
             if (!item) return [];
-            // Lê o banco gigante primeiro. Se vazio, usa a imagem antiga de capa
             let str = item.obra_galeria || item.obra_imagem || item.imagem || "";
             if (!str) return [];
             
             try {
                 let parsed = JSON.parse(str);
                 if (Array.isArray(parsed)) {
-                    return parsed.map(foto => ({ url: foto.url, desc: foto.desc || "" }));
+                    // MÁGICA: Agora lê o campo 'data' do banco
+                    return parsed.map(foto => ({ url: foto.url, desc: foto.desc || "", data: foto.data || "" }));
                 }
             } catch(e) {
-                if (str.startsWith('http') || str.startsWith('data:')) return [{ url: str, desc: "" }];
+                if (str.startsWith('http') || str.startsWith('data:')) return [{ url: str, desc: "", data: "" }];
             }
             return [];
         };
@@ -3052,8 +3079,12 @@ window.removerFotoGaleria = function(index) {
                 return `
                 <div class="flex gap-3 bg-white p-2 rounded-xl border border-gray-200 shadow-sm items-center">
                     <img src="${imgSrc}" class="w-16 h-16 object-cover rounded-lg border border-gray-100 shrink-0">
-                    <div class="flex-1 flex flex-col gap-1">
+                    <div class="flex-1 flex flex-col gap-1.5">
                         <input type="text" value="${foto.desc || ''}" onchange="window.galeriaTemp[${index}].desc = this.value" placeholder="Descrição (Ex: Banco quebrado)..." class="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-green-500">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Data da Foto:</span>
+                            <input type="date" value="${foto.data || ''}" onchange="window.galeriaTemp[${index}].data = this.value" class="flex-1 text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-green-500">
+                        </div>
                     </div>
                     <button onclick="window.removerFotoGaleria(${index})" class="text-gray-400 hover:text-red-500 p-2 transition font-black" title="Excluir">X</button>
                 </div>`;
@@ -3282,15 +3313,27 @@ window.removerFotoGaleria = function(index) {
                               </div>
 
                               <div class="flex items-center gap-0.5 bg-white/80 backdrop-blur-sm p-1 rounded-xl border border-slate-200/80 shrink-0 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+                                  
+                                  <!-- Botão 1: Renomear -->
                                   <button onclick="editarNomeItem(${item.id})" class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Renomear">
                                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                   </button>
-                                  <button onclick="window.abrirModalImagem('${item.id}')" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Galeria de Fotos">
-                                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                  
+                                  <!-- Botão 2: Adicionar/Editar Fotos (ÍCONE DE CÂMERA) -->
+                                  <button onclick="window.abrirModalImagem('${item.id}')" class="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Adicionar ou Editar Fotos">
+                                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                   </button>
+                                  
+                                  <!-- Botão 3: Ver Galeria (ÍCONE DE FOTOS/PAISAGEM) -->
+                                  <button onclick="window.abrirVisualizadorFotos('${item.id}')" class="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all" title="Ver Galeria de Fotos">
+                                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                  </button>
+
+                                  <!-- Botão 4: Excluir -->
                                   <button onclick="deletarItem(${item.id})" class="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Excluir">
                                       <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                   </button>
+
                               </div>
                           </div>
 
@@ -3674,11 +3717,15 @@ window.removerFotoGaleria = function(index) {
                   imgTooltip.insertAdjacentHTML('afterend', `
                       <div id="tooltip-desc-box" class="absolute bottom-[65px] left-0 right-0 bg-slate-900/80 backdrop-blur-sm text-white text-[11px] p-2 text-center leading-tight shadow-sm" style="display:none;"></div>
                       <div id="tooltip-contador" class="absolute top-2 right-2 bg-black/70 backdrop-blur-md text-white font-bold text-[10px] px-2 py-1 rounded-full z-10" style="display:none;"></div>
+                      <!-- NOVO: Badge da Data da Foto -->
+                      <div id="tooltip-data-foto" class="absolute top-2 left-2 bg-emerald-700/90 backdrop-blur-md text-white font-bold text-[9px] px-2 py-1 rounded-md z-10 shadow-sm flex items-center gap-1 uppercase tracking-wider border border-emerald-500/50" style="display:none;"></div>
                   `);
                   imgTooltip.parentElement.classList.add('relative');
               }
+              
               const descBox = document.getElementById('tooltip-desc-box');
               const contBox = document.getElementById('tooltip-contador');
+              const dataBox = document.getElementById('tooltip-data-foto');
 
               clearInterval(window.tooltipSlideshowInterval);
               let galeriaHover = window.obterGaleriaCompleta(itemBanco);
@@ -3689,11 +3736,23 @@ window.removerFotoGaleria = function(index) {
 
                   const tocarSlide = (index) => {
                       imgTooltip.src = galeriaHover[index].url;
+                      
+                      // Lógica da Descrição
                       if (galeriaHover[index].desc) {
                           descBox.innerText = galeriaHover[index].desc;
                           descBox.style.display = 'block';
                       } else { descBox.style.display = 'none'; }
                       
+                      // Lógica da Data (NOVO)
+                      if (galeriaHover[index].data) {
+                          const dataFormatada = galeriaHover[index].data.split('-').reverse().join('/');
+                          dataBox.innerHTML = `<svg class="w-3 h-3 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> ${dataFormatada}`;
+                          dataBox.style.display = 'flex';
+                      } else { 
+                          dataBox.style.display = 'none'; 
+                      }
+                      
+                      // Lógica do Contador
                       if (galeriaHover.length > 1) {
                           contBox.innerText = `${index + 1} / ${galeriaHover.length}`;
                           contBox.style.display = 'block';
@@ -3714,6 +3773,7 @@ window.removerFotoGaleria = function(index) {
                   imgTooltip.classList.remove('block');
                   descBox.style.display = 'none';
                   contBox.style.display = 'none';
+                  dataBox.style.display = 'none'; // Garante que a data suma se não tiver foto
               }
                    
               // 3. A MÁGICA 3D: Pega o "meio" do objeto
@@ -4407,3 +4467,177 @@ window.removerTarefaDireto = function(idObra, indexTarefa) {
     window.abrirDetalheObra(idObra); 
     if (pracaAtivaId && typeof window.atualizarInterfaceEMapa === 'function') window.atualizarInterfaceEMapa(); 
 };
+
+// =====================================================================
+        // MOTOR DO VISUALIZADOR DE FOTOS EM TELA CHEIA
+        // =====================================================================
+        
+        window.fotosVisualizador = [];
+        window.indiceFotoAtual = 0;
+
+        window.abrirVisualizadorFotos = function(id) {
+            const item = window.bancoDeDadosItens.find(i => String(i.id) === String(id) || String(i.idVisual) === String(id));
+            if (!item) return;
+
+            const galeria = window.obterGaleriaCompleta(item);
+            if (galeria.length === 0) {
+                alert("Este item ainda não possui fotos cadastradas na galeria.");
+                return;
+            }
+
+            window.fotosVisualizador = galeria;
+            window.indiceFotoAtual = 0;
+
+            const modalExistente = document.getElementById('modal-visualizador-fotos');
+            if (modalExistente) modalExistente.remove();
+
+            // Gera as miniaturas do rodapé
+            const miniaturasHTML = galeria.map((foto, index) => `
+                <img src="${foto.url}" onclick="window.irParaFotoVisualizador(${index}, event)" class="w-16 h-16 object-cover rounded-lg cursor-pointer border-2 transition-all opacity-50 hover:opacity-100 ${index === 0 ? 'border-emerald-500 opacity-100 shadow-[0_0_10px_#10b981]' : 'border-transparent'}" id="miniatura-foto-${index}">
+            `).join('');
+
+            document.body.insertAdjacentHTML('beforeend', `
+            <div id="modal-visualizador-fotos" class="fixed inset-0 z-[9999999] bg-black/95 flex flex-col items-center justify-center backdrop-blur-md transition-opacity">
+                
+                <!-- Controles Superiores -->
+                <div class="absolute top-6 right-6 flex items-center gap-4 z-50">
+                    <button onclick="window.toggleTelaCheiaVisualizador()" class="text-white/60 hover:text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-xl transition-all shadow-sm" title="Alternar Tela Cheia">
+                        <svg id="icone-tela-cheia" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    </button>
+                    <button onclick="window.fecharVisualizadorFotos()" class="text-white/60 hover:text-red-500 bg-white/10 hover:bg-red-500/20 p-2.5 rounded-xl transition-all shadow-sm" title="Fechar Visualizador (ESC)">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Cabeçalho (Título e Descrição) -->
+                <div class="absolute top-8 left-8 z-50 max-w-lg pointer-events-none">
+                    <h3 style="font-family: 'Orbitron', sans-serif;" class="text-2xl md:text-3xl font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-2">${item.nome}</h3>
+                    <div class="flex flex-col items-start gap-1">
+                        <div class="inline-block bg-black/50 backdrop-blur-sm border border-white/10 px-3 py-1.5 rounded-lg">
+                            <p id="desc-foto-atual" class="text-emerald-300 text-sm font-medium tracking-wide">${galeria[0].desc || 'Sem descrição vinculada a esta imagem'}</p>
+                        </div>
+                        <div id="container-data-foto" class="${galeria[0].data ? 'block' : 'hidden'} inline-block bg-black/50 backdrop-blur-sm border border-white/10 px-2.5 py-1 rounded-md">
+                            <span class="text-white/80 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                                <svg class="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <span id="data-foto-atual">${galeria[0].data ? galeria[0].data.split('-').reverse().join('/') : ''}</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contador Central -->
+                <div class="absolute top-8 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-1.5 rounded-full text-white/90 font-black text-xs tracking-widest uppercase border border-white/10 shadow-sm z-50">
+                    <span id="contador-foto-atual">1</span> / ${galeria.length}
+                </div>
+
+                <!-- Imagem Principal e Setas de Navegação -->
+                <div class="relative w-full h-[75vh] flex items-center justify-center px-16 group select-none">
+                    <img id="img-visualizador-principal" src="${galeria[0].url}" class="max-w-full max-h-full object-contain rounded-xl shadow-2xl transition-all duration-300">
+                    
+                    ${galeria.length > 1 ? `
+                        <button onclick="window.mudarFotoVisualizador(-1, event)" class="absolute left-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white bg-black/50 hover:bg-black/90 p-4 rounded-full transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg border border-white/10">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <button onclick="window.mudarFotoVisualizador(1, event)" class="absolute right-6 top-1/2 -translate-y-1/2 text-white/40 hover:text-white bg-black/50 hover:bg-black/90 p-4 rounded-full transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg border border-white/10">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+                        </button>
+                    ` : ''}
+                </div>
+
+                <!-- Barra de Miniaturas (Carrossel Inferior) -->
+                ${galeria.length > 1 ? `
+                    <div class="absolute bottom-8 w-full flex justify-center gap-3 px-6 overflow-x-auto pb-2 z-50">
+                        ${miniaturasHTML}
+                    </div>
+                ` : ''}
+            </div>`);
+
+            // Suporte para teclas do teclado (Setas e ESC)
+            document.addEventListener('keydown', window.escutarTeclasVisualizador);
+        };
+
+        window.mudarFotoVisualizador = function(direcao, event) {
+            if(event) event.stopPropagation();
+            let novoIndice = window.indiceFotoAtual + direcao;
+            
+            // Loop infinito: se passar da última volta pra primeira, e vice-versa
+            if (novoIndice < 0) novoIndice = window.fotosVisualizador.length - 1;
+            else if (novoIndice >= window.fotosVisualizador.length) novoIndice = 0;
+            
+            window.irParaFotoVisualizador(novoIndice);
+        };
+
+        window.irParaFotoVisualizador = function(index, event) {
+            if(event) event.stopPropagation();
+            window.indiceFotoAtual = index;
+            const foto = window.fotosVisualizador[index];
+            
+            // Efeito de fade-in suave na troca de imagem
+            const imgEl = document.getElementById('img-visualizador-principal');
+            imgEl.style.opacity = 0.3;
+            imgEl.style.transform = 'scale(0.98)';
+            
+            setTimeout(() => {
+                imgEl.src = foto.url;
+                imgEl.style.opacity = 1;
+                imgEl.style.transform = 'scale(1)';
+            }, 150);
+
+            // Atualiza o painel de informações
+            document.getElementById('desc-foto-atual').innerText = foto.desc || 'Sem descrição vinculada a esta imagem';
+            
+            const elContainerData = document.getElementById('container-data-foto');
+            const elDataAtual = document.getElementById('data-foto-atual');
+            if (foto.data) {
+                elDataAtual.innerText = foto.data.split('-').reverse().join('/');
+                elContainerData.classList.remove('hidden');
+                elContainerData.classList.add('block');
+            } else {
+                elContainerData.classList.remove('block');
+                elContainerData.classList.add('hidden');
+            }
+            
+            document.getElementById('contador-foto-atual').innerText = index + 1;
+        };
+
+        window.fecharVisualizadorFotos = function() {
+            const modal = document.getElementById('modal-visualizador-fotos');
+            if (modal) {
+                // Tira da tela cheia antes de fechar a janela
+                if (document.fullscreenElement) {
+                    document.exitFullscreen().catch(err => console.log(err));
+                }
+                document.removeEventListener('keydown', window.escutarTeclasVisualizador);
+                modal.remove();
+            }
+        };
+
+        window.toggleTelaCheiaVisualizador = function() {
+            const modal = document.getElementById('modal-visualizador-fotos');
+            const icone = document.getElementById('icone-tela-cheia');
+            
+            if (!document.fullscreenElement) {
+                // ENTRA em tela cheia
+                if (modal.requestFullscreen) modal.requestFullscreen();
+                else if (modal.webkitRequestFullscreen) modal.webkitRequestFullscreen();
+                else if (modal.msRequestFullscreen) modal.msRequestFullscreen();
+                
+                // Muda o ícone para "Reduzir"
+                icone.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7M4 10h6m0 0V4m0 6l-7-7m17 11h-6m0 0v6m0-6l7 7"></path>`;
+            } else {
+                // SAI da tela cheia
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
+                
+                // Retorna o ícone para "Expandir"
+                icone.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l5-5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>`;
+            }
+        };
+
+        window.escutarTeclasVisualizador = function(e) {
+            if (!document.getElementById('modal-visualizador-fotos')) return;
+            if (e.key === 'ArrowRight') window.mudarFotoVisualizador(1);
+            if (e.key === 'ArrowLeft') window.mudarFotoVisualizador(-1);
+            if (e.key === 'Escape') window.fecharVisualizadorFotos();
+        };

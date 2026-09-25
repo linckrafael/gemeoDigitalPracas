@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DAV 3D - Zeladoria Urbana (Protótipo)</title>
+  <title> ZU 3D - Zeladoria Urbana 3D</title>
 
   <!-- Driver.js (Para o Tour Guiado Profissional) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/driver.js@1.0.1/dist/driver.css"/>
@@ -26,12 +26,13 @@
   <link rel="stylesheet" href="style.css">  
 
   <!-- fivocon -->
-   <link rel="icon" type="image/png" href="./favicon/favicon-96x96.png" sizes="96x96" />
-  <link rel="icon" type="image/svg+xml" href="./favicon/favicon.svg" />
-  <link rel="shortcut icon" href="./favicon/favicon.ico" />
-  <link rel="apple-touch-icon" sizes="180x180" href="./favicon/apple-touch-icon.png" />
-  <link rel="manifest" href="./favicon/site.webmanifest" />
+<link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="shortcut icon" href="/favicon.ico" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/site.webmanifest" />
 </head>
+
 <body>
 <!-- O Mapa 3D ocupando 100% do fundo -->
   <main id="mapa-container" class="absolute inset-0 w-full h-full"></main>
@@ -73,7 +74,7 @@
         <div class="flex flex-col justify-center w-[130px] md:w-auto whitespace-normal">
             <!-- Título em Degradê -->
             <span style="font-family: 'Orbitron', sans-serif;" class="font-black text-[12px] md:text-[18px] tracking-widest uppercase leading-tight drop-shadow-md bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent">
-             Gêmeo Digital
+             Zeladoria Urbana 3D
             </span>
             
             <!-- Subtítulo -->
@@ -154,13 +155,17 @@
         
         <!-- TELA 1: LISTA E FILTROS -->
         <div id="tela-lista-obras">
-
+          
+          <!-- 1. BOTAO VOLTAR NO TOPO -->
+          <div id="container-voltar-obras"></div>
+          
+          <!-- 2. TÍTULO PRINCIPAL NO MEIO -->
           <div class="w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 mb-4 text-center">
               <h2 style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Obras nas praças e parques</h2>
           </div>
-          
-          <!-- TOPO DA GESTÃO DE OBRAS (Sem o título antigo) -->
-          <div id="container-voltar-obras"></div>
+
+          <!-- 3. CAIXA VERDE DA PRAÇA ESPECÍFICA (Novo Contêiner) -->
+          <div id="container-aviso-praca-obras"></div>
 
           <!-- BARRA DE PESQUISA EXCLUSIVA DE OBRAS -->
           <div class="relative mb-4 shrink-0">
@@ -399,7 +404,7 @@
         
         <!-- Cabeçalho Executivo do Dashboard -->
          <div class="w-full bg-gradient-to-r from-[#15803d]/60 via-emerald-800/50 to-green-950/60 backdrop-blur-2xl py-3 px-4 rounded-xl shadow-md border border-white/25 mb-2 text-center">
-    <h2 id="dash-titulo" style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Visão Global</h2>
+    <h2 id="dash-titulo" style="font-family: 'Orbitron', sans-serif;" class="text-[14px] font-black uppercase tracking-widest bg-gradient-to-r from-green-300 to-emerald-500 bg-clip-text text-transparent leading-tight inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Panorama Geral</h2>
 </div>
         <div class="flex justify-between items-center mb-5 pb-3 border-b border-slate-200">
           
@@ -409,16 +414,16 @@
         <!-- Cards de Resumo Principais (Indicadores Macro) -->
 <div class="grid grid-cols-2 gap-3 mb-6">
   
-  <!-- Card 1: Total de Praças -->
-  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all">
-    <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total de Praças</span>
-    <span id="dash-qtd-pracas" class="text-2xl font-black text-slate-900">0</span>
+ <!-- Card 1: Total de Praças (Gradiente Suave e Título Gêmeo Digital) -->
+  <div class="bg-gradient-to-b from-emerald-100/60 to-white border border-emerald-300/70 rounded-[16px] shadow-sm p-5 flex flex-col items-center justify-center">
+    <span style="font-family: 'Orbitron', sans-serif;" class="block text-[11px] font-black uppercase tracking-widest mb-1 text-center bg-gradient-to-r from-green-500 to-emerald-700 bg-clip-text text-transparent drop-shadow-sm">Total de Praças</span>
+    <span id="dash-qtd-pracas" class="text-4xl font-black text-emerald-600 tracking-tight text-center drop-shadow-sm">0</span>
   </div>
   
-  <!-- Card 2: Mobiliários Ativos -->
-  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between hover:border-emerald-300 hover:shadow-md transition-all">
-    <span class="block text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mobiliários Ativos</span>
-    <span id="dash-qtd-itens" class="text-2xl font-black text-slate-900">0</span>
+  <!-- Card 2: Mobiliários Ativos (Gradiente Suave e Título Gêmeo Digital) -->
+  <div class="bg-gradient-to-b from-emerald-100/60 to-white border border-emerald-300/70 rounded-[16px] shadow-sm p-5 flex flex-col items-center justify-center">
+    <span style="font-family: 'Orbitron', sans-serif;" class="block text-[11px] font-black uppercase tracking-widest mb-1 text-center bg-gradient-to-r from-green-500 to-emerald-700 bg-clip-text text-transparent drop-shadow-sm">Mobiliários Ativos</span>
+    <span id="dash-qtd-itens" class="text-4xl font-black text-emerald-600 tracking-tight text-center drop-shadow-sm">0</span>
   </div>
   
   <!-- Card 3: Investimento em Obras (A Nova Tarja Premium) -->
