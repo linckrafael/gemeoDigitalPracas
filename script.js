@@ -1164,7 +1164,7 @@
           }).catch(err => console.error("🔴 Erro de rede:", err));
         };
 
-        window.sincronizarAtualizacaoNuvem = function(item, geometriaNova = null) {
+window.sincronizarAtualizacaoNuvem = function(item, geometriaNova = null) {
   if (!item.objectId) return; 
   
   const nomeColunaId = window.camadaItensNuvem.objectIdField || "OBJECTID";
@@ -1263,15 +1263,15 @@
                  // --- LENDO OS CAMPOS DE OBRA DO SEU BANCO DE DADOS ---
                  obra_titulo: f.attributes.obra_titulo,
                  obra_imagem: f.attributes.obra_imagem,
-                 obra_galeria: f.attributes.obra_galeria,
+                 obra_galeria: f.attributes.obra_galeria_nova || f.attributes.obra_galeria,
                  obra_empreiteira: f.attributes.obra_empreiteira,
                  obra_orcamento: f.attributes.obra_orcamento,
                  obra_inicio: f.attributes.obra_inicio, 
                  obra_fim: f.attributes.obra_fim,
                  obra_status: f.attributes.obra_status,
                  obra_progresso: f.attributes.obra_progresso,
-                 obra_desc: f.attributes.obra_desc,
-                 obra_checklist: f.attributes.obra_checklist
+                 obra_desc: f.attributes.obra_descricao_nova || f.attributes.obra_desc,
+                 obra_checklist: f.attributes.obra_checklist_novo || f.attributes.obra_checklist
               };
            });
 
@@ -1920,32 +1920,45 @@
     // Formata o dinheiro no padrão BRL
     const orcamentoFormatado = parseFloat(obra.obra_orcamento || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
-    // 1. MÁGICA DE ESTILIZAÇÃO DOS BOTÕES EXTERNOS (Para acompanhar o novo layout)
+    // 1. MÁGICA DE ESTILIZAÇÃO DOS BOTÕES EXTERNOS (Ícones minimalistas)
     const btnVoltar = document.querySelector('#tela-detalhe-obra button[onclick="voltarParaListaObras()"]');
     if (btnVoltar) {
         btnVoltar.className = "text-xs text-slate-500 font-bold flex items-center hover:text-emerald-600 hover:bg-emerald-50 px-2 py-1.5 rounded-lg transition-colors uppercase tracking-wider gap-1";
         btnVoltar.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg> Voltar`;
     }
     
+    const btnHistorico = document.getElementById('btn-historico-obra-ativa');
+    if (btnHistorico) {
+        btnHistorico.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+        btnHistorico.onclick = function() { window.abrirModalLogObra(id); };
+    }
+    
     const btnEditar = document.getElementById('btn-editar-obra-ativa');
     if (btnEditar) {
-        btnEditar.className = "bg-white hover:bg-emerald-50 text-emerald-700 text-[10px] uppercase tracking-widest font-bold px-3 py-2 rounded-lg transition-all border border-emerald-200 shadow-sm hover:shadow-md flex items-center gap-1";
-        btnEditar.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> Editar`;
+        btnEditar.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>`;
     }
 
     const btnDeletar = document.getElementById('btn-deletar-obra-ativa');
     if (btnDeletar) {
-        btnDeletar.className = "bg-white hover:bg-red-50 text-red-600 text-[10px] uppercase tracking-widest font-bold px-3 py-2 rounded-lg transition-all border border-red-200 shadow-sm hover:shadow-md flex items-center gap-1";
-        btnDeletar.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Excluir`;
+        btnDeletar.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`;
     }
 
-    // --- LÓGICA DO CHECKLIST PARA OS DETALHES ---
+    // --- LÓGICA DO CHECKLIST E DESCRIÇÃO ---
+    // Removemos a gambiarra, agora pega a descrição limpa direto do banco!
+    let descExibicao = obra.obra_desc || 'Nenhuma descrição fornecida para o projeto.';
+
     let listaTarefas = [];
-    try { listaTarefas = JSON.parse(obra.obra_checklist || '[]'); } catch(e) {}
+    try { 
+        let parsed = JSON.parse(obra.obra_checklist || '[]'); 
+        if (Array.isArray(parsed)) listaTarefas = parsed;
+        else if (parsed.t) listaTarefas = parsed.t; // Lê o formato comprimido (t = tarefas)
+        else if (parsed.tarefas) listaTarefas = parsed.tarefas; // Lê formato antigo
+    } catch(e) {}
 
     let htmlChecklist = '';
     if (listaTarefas.length === 0) {
-        htmlChecklist = '<p class="text-[11px] text-slate-400 italic mt-3 bg-slate-50 p-3 rounded-xl border border-slate-100">Nenhuma etapa cadastrada neste projeto.</p>';
+        // AQUI ESTAVA O ERRO DAS CRASES FALTANDO:
+        htmlChecklist = `<p class="text-[11px] text-slate-400 italic mt-3 bg-slate-50 p-3 rounded-xl border border-slate-100">Nenhuma etapa cadastrada neste projeto.</p>`;
     } else {
         htmlChecklist = '<ul class="mt-4 space-y-2">';
         listaTarefas.forEach((tarefa, index) => {
@@ -2076,7 +2089,7 @@
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
               Escopo do Projeto
           </h3>
-          <p class="text-xs text-slate-600 leading-relaxed bg-white/60 p-4 rounded-xl border border-slate-200/60 shadow-sm backdrop-blur-sm">${obra.obra_desc || 'Nenhuma descrição fornecida para o projeto.'}</p>
+          <p class="text-xs text-slate-600 leading-relaxed bg-white/60 p-4 rounded-xl border border-slate-200/60 shadow-sm backdrop-blur-sm">${descExibicao}</p>
       </div>
 
       <!-- CHECKLIST DINÂMICO -->
@@ -2306,10 +2319,19 @@
             document.getElementById('form-obra-fim').value = formataDataInput(obra.obra_fim);
             document.getElementById('form-obra-status').value = obra.obra_status;
             document.getElementById('form-obra-progresso').value = obra.obra_progresso;
-            document.getElementById('form-obra-desc').value = obra.obra_desc || "";
             
-            // Carrega Checklist antigo
-            try { window.tarefasTemp = JSON.parse(obra.obra_checklist || '[]'); } catch(e) { window.tarefasTemp = []; }
+            // A descrição volta ao normal, sem desempacotar nada!
+            document.getElementById('form-obra-desc').value = obra.obra_desc || "";
+
+            document.getElementById('contador-desc').innerText = (obra.obra_desc || "").length + "/255";
+            
+            // Carrega Checklist extraindo do formato ultra-comprimido
+            try { 
+                let parsed = JSON.parse(obra.obra_checklist || '[]'); 
+                if (Array.isArray(parsed)) window.tarefasTemp = parsed;
+                else if (parsed.t) window.tarefasTemp = parsed.t;
+                else if (parsed.tarefas) window.tarefasTemp = parsed.tarefas;
+            } catch(e) { window.tarefasTemp = []; }
             if (typeof window.renderizarTarefasForm === 'function') window.renderizarTarefasForm();
             
             // Carrega Galeria Antiga da Obra
@@ -2328,6 +2350,8 @@
             document.getElementById('form-obra-status').value = "Planejado";
             document.getElementById('form-obra-progresso').value = "0";
             document.getElementById('form-obra-desc').value = "";
+
+            document.getElementById('contador-desc').innerText = "0/255";
             
             // Zera Checklist e Galeria
             window.tarefasTemp = [];
@@ -2366,6 +2390,99 @@
               obra_desc: document.getElementById('form-obra-desc').value,
               obra_checklist: document.getElementById('form-obra-checklist').value || "[]"
           };
+
+          // --- GERADOR DE LOG DE ALTERAÇÕES (COMPACTO) ---
+          let logNovo = null;
+          if (idCampo) {
+              const itemAntigo = window.bancoDeDadosItens.find(i => i.id === parseInt(idCampo));
+              if (itemAntigo) {
+                  let mudancas = [];
+                  
+                  if ((itemAntigo.obra_desc || "") !== (atributosEdicao.obra_desc || "")) {
+                      mudancas.push(`Descrição alterada`);
+                  }
+                  if (itemAntigo.obra_status !== atributosEdicao.obra_status) {
+                      mudancas.push(`Status: ${itemAntigo.obra_status || '-'} ➔ ${atributosEdicao.obra_status}`);
+                  }
+                  if (itemAntigo.obra_progresso != atributosEdicao.obra_progresso) {
+                      mudancas.push(`Progresso: ${itemAntigo.obra_progresso || 0}% ➔ ${atributosEdicao.obra_progresso}%`);
+                  }
+                  if (parseFloat(itemAntigo.obra_orcamento || 0) !== parseFloat(atributosEdicao.obra_orcamento || 0)) {
+                      // Formatação curta para caber no banco (ex: R$150.000)
+                      const orcAnt = parseFloat(itemAntigo.obra_orcamento || 0).toLocaleString('pt-BR');
+                      const orcNovo = parseFloat(atributosEdicao.obra_orcamento || 0).toLocaleString('pt-BR');
+                      mudancas.push(`Orç.: R$${orcAnt} ➔ R$${orcNovo}`);
+                  }
+                  if (itemAntigo.obra_titulo !== atributosEdicao.obra_titulo) {
+                      let tAnt = itemAntigo.obra_titulo || '-';
+                      let tNov = atributosEdicao.obra_titulo || '-';
+                      // Corta o título longo para não quebrar o banco
+                      if (tAnt.length > 15) tAnt = tAnt.substring(0, 15) + '...';
+                      if (tNov.length > 15) tNov = tNov.substring(0, 15) + '...';
+                      mudancas.push(`Título: ${tAnt} ➔ ${tNov}`);
+                  }
+
+                  if ((itemAntigo.obra_desc || "") !== (atributosEdicao.obra_desc || "")) {
+                      mudancas.push(`Descrição alterada`);
+                  }
+
+                  if (mudancas.length > 0) {
+                      logNovo = { d: new Date().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}), a: "Edição", m: mudancas };
+                  } else {
+                      logNovo = { d: new Date().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}), a: "Edição", m: ["Checklist/Fotos alteradas"] };
+                  }
+              }
+          } else {
+              logNovo = { d: new Date().toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'}), a: "Criação", m: ["Obra cadastrada"] };
+          }
+          
+          // MÁGICA DE COMPRESSÃO NO CHECKLIST
+          let tarefasDoForm = [];
+          try { tarefasDoForm = JSON.parse(document.getElementById('form-obra-checklist').value || '[]'); } catch(e) {}
+          
+          let logsSalvos = [];
+          if (idCampo) {
+              const itemAnt = window.bancoDeDadosItens.find(i => i.id === parseInt(idCampo));
+              if (itemAnt) {
+                  try { 
+                      let parsed = JSON.parse(itemAnt.obra_checklist || '{}'); 
+                      if (parsed.l) logsSalvos = parsed.l; // 'l' de logs
+                      else if (Array.isArray(parsed.logs)) logsSalvos = parsed.logs;
+                  } catch(e) {}
+              }
+          }
+          
+          if (logNovo) logsSalvos.push(logNovo);
+          
+          // Trava de segurança máxima: Guarda apenas os últimos 5 logs para não quebrar o banco da Esri
+          if (logsSalvos.length > 5) logsSalvos = logsSalvos.slice(-5);
+          
+          // Empacota Tarefas (t) e Logs (l) economizando caracteres
+          atributosEdicao.obra_checklist = JSON.stringify({ t: tarefasDoForm, l: logsSalvos });
+          
+          // A descrição agora vai limpa, sem estourar limite!
+          atributosEdicao.obra_desc = document.getElementById('form-obra-desc').value || "";
+          // ---------------------------------------
+
+          // =======================================================
+          // 🔴 TRAVA DE SEGURANÇA: ALERTA DE LIMITE DE CARACTERES
+          // IMPORTANTE: Mude de 255 para 2000 após alterar lá no ArcGIS!
+          // =======================================================
+          const LIMITE_BANCO = 2000; 
+          
+          if (atributosEdicao.obra_desc.length > LIMITE_BANCO) {
+              alert(`⚠️ O texto da descrição é muito grande!\n\nVocê digitou ${atributosEdicao.obra_desc.length} caracteres, mas o banco suporta apenas ${LIMITE_BANCO}. Resuma o texto ou aumente o limite no ArcGIS Online.`);
+              btnSalvar.innerText = "Salvar Obra";
+              btnSalvar.disabled = false;
+              return; // Trava o código e não deixa mandar pro banco!
+          }
+          if (atributosEdicao.obra_checklist.length > LIMITE_BANCO) {
+              alert(`⚠️ O checklist e o histórico ficaram muito grandes (estourou o limite de ${LIMITE_BANCO} caracteres).\n\nExclua algumas etapas do checklist ou aumente o limite no ArcGIS Online.`);
+              btnSalvar.innerText = "Salvar Obra";
+              btnSalvar.disabled = false;
+              return; 
+          }
+          // =======================================================
 
           const finalizarESair = (idSalvo) => {
               btnSalvar.innerText = "Salvar Obra";
@@ -2419,8 +2536,21 @@
                 if(index !== -1) window.bancoDeDadosItens[index] = { ...window.bancoDeDadosItens[index], ...atributosEdicao };
 
                 window.camadaItensNuvem.applyEdits({ updateFeatures: [{ attributes: atributosEdicao }] })
-                    .then(() => finalizarESair(idInt)).catch(err => { console.error(err); finalizarESair(idInt); });
-                    
+                    .then((res) => {
+                        // Verifica se o servidor recusou silenciosamente
+                        if (res.updateFeatureResults && res.updateFeatureResults.length > 0 && res.updateFeatureResults[0].error) {
+                            alert("❌ Erro do Banco de Dados:\n" + (res.updateFeatureResults[0].error.description || res.updateFeatureResults[0].error.message || JSON.stringify(res.updateFeatureResults[0].error)));
+                            btnSalvar.innerText = "Salvar Obra";
+                            btnSalvar.disabled = false;
+                            return; // Se deu erro, cancela e não finge que salvou!
+                        }
+                        finalizarESair(idInt);
+                    }).catch(err => { 
+                        alert("❌ Erro de conexão com a Nuvem.");
+                        btnSalvar.innerText = "Salvar Obra";
+                        btnSalvar.disabled = false;
+                    });
+
             }).catch(err => { alert("Erro ao processar galeria."); finalizarESair(idInt); });
 
           } else {
@@ -2429,7 +2559,20 @@
                 attributes: atributosEdicao
             });
 
-            window.camadaItensNuvem.applyEdits({ addFeatures: [graphicNovo] }).then((res) => {
+            // AQUI O SISTEMA LÊ O ERRO SECRETO DO ARCGIS NA EDIÇÃO
+                window.camadaItensNuvem.applyEdits({ updateFeatures: [{ attributes: atributosEdicao }] }).then((res) => {
+                    if (res.updateFeatureResults && res.updateFeatureResults.length > 0 && res.updateFeatureResults[0].error) {
+                        
+                        // Captura o erro em todos os formatos possíveis da Esri
+                        const erroDaEsri = res.updateFeatureResults[0].error;
+                        const msgErro = erroDaEsri.description || erroDaEsri.message || JSON.stringify(erroDaEsri);
+                        
+                        alert("❌ Erro do Banco de Dados:\n" + msgErro);
+                        btnSalvar.innerText = "Salvar Obra";
+                        btnSalvar.disabled = false;
+                        return;
+                    }
+                
                 if (res.addFeatureResults.length > 0 && res.addFeatureResults[0].objectId) {
                     const idOficial = res.addFeatureResults[0].objectId;
                     
@@ -3670,11 +3813,46 @@ window.removerFotoGaleria = function(index) {
         window.tooltipSlideshowInterval = null;
         window.tooltipCurrentSlide = 0;
 
+        // --- MOTOR LIGA/DESLIGA DO CARD FLUTUANTE ---
+        window.hoverHabilitado = true;
+        
+        window.toggleHoverObjetos = function(event) {
+            // A MÁGICA: Impede que o clique no olho dispare o clique da sanfona!
+            if (event) event.stopPropagation(); 
+            
+            window.hoverHabilitado = !window.hoverHabilitado;
+            
+            const btn = document.getElementById('btn-toggle-hover');
+            const iconeOn = document.getElementById('icone-hover-on');
+            const iconeOff = document.getElementById('icone-hover-off');
+            
+            if (window.hoverHabilitado) {
+                // LIGA: Olho verde vibrante
+                btn.classList.remove('text-slate-400', 'hover:text-slate-600');
+                btn.classList.add('text-emerald-800', 'hover:text-emerald-950');
+                iconeOn.classList.replace('hidden', 'block');
+                iconeOff.classList.replace('block', 'hidden');
+            } else {
+                // DESLIGA: Olho cinza riscado
+                btn.classList.remove('text-emerald-800', 'hover:text-emerald-950');
+                btn.classList.add('text-slate-400', 'hover:text-slate-600');
+                iconeOn.classList.replace('block', 'hidden');
+                iconeOff.classList.replace('hidden', 'block');
+                
+                // Força o card a sumir imediatamente, mas sem remover o contorno!
+                const tooltip = document.getElementById('custom-tooltip');
+                if (tooltip) {
+                    tooltip.classList.add('hidden');
+                    tooltip.classList.remove('flex');
+                }
+            }
+        };
+
         // --- HOVER COM TOOLTIP CUSTOMIZADO E CONTORNO AZUL ---
         view.on("pointer-move", function(event) {
           const tooltip = document.getElementById('custom-tooltip');
 
-          // Se estivermos adicionando ou movendo itens, esconde tudo
+          // 1. Se estiver adicionando ou movendo itens no mapa, bloqueia tudo (contorno e card)
           if (modoInteracaoMapa !== null) {
             tooltip.classList.add('hidden');
             tooltip.classList.remove('flex');
@@ -3690,11 +3868,20 @@ window.removerFotoGaleria = function(index) {
             if (hitResult) {
               const graphicHovered = hitResult.graphic;
               
-              // --- MÁGICA DO CONTORNO AZUL ---
+              // --- A MÁGICA DO CONTORNO AZUL (Sempre acontece, independente do interruptor) ---
               view.whenLayerView(graphicsLayer).then(function(layerView) {
                 if (highlightHover) { highlightHover.remove(); }
                 highlightHover = layerView.highlight(graphicHovered);
               });
+              
+              document.getElementById('mapa-container').style.cursor = 'pointer';
+
+              // --- A TRAVA DO CARD (Se o interruptor estiver desligado, para por aqui) ---
+              if (window.hoverHabilitado === false) {
+                  tooltip.classList.add('hidden');
+                  tooltip.classList.remove('flex');
+                  return;
+              }
               
               // 1. Preenche os Textos
               document.getElementById('tooltip-title').innerText = graphicHovered.attributes.nome;
@@ -3868,6 +4055,11 @@ tooltip.style.transform = "translate(-50%, -100%)";
                       
                       if (document.getElementById('content-inventario').classList.contains('hidden')) {
                           document.getElementById('btn-inventario').click();
+                      }
+
+                      // 🔴 A MÁGICA: Força a aba Visão Geral a abrir antes de focar no card!
+                      if (typeof window.alternarAbaPraca === 'function' && pracaAtivaId) {
+                          window.alternarAbaPraca('geral');
                       }
 
                       // Abre a sanfona correta, se estiver fechada
@@ -4417,28 +4609,36 @@ window.renderizarTarefasForm = function() {
     document.getElementById('form-obra-checklist').value = JSON.stringify(window.tarefasTemp);
 };
 
+
 window.toggleTarefaChecklist = function(idObra, indexTarefa, isChecked) {
     const obra = window.bancoDeDadosItens.find(o => o.id === idObra);
     if(!obra) return;
     
-    let tarefas = [];
-    try { tarefas = JSON.parse(obra.obra_checklist || '[]'); } catch(e) {}
+    let tarefasBase = [];
+    let logsSalvos = [];
+    try { 
+        let parsed = JSON.parse(obra.obra_checklist || '[]'); 
+        if (Array.isArray(parsed)) tarefasBase = parsed;
+        else {
+            tarefasBase = parsed.t || parsed.tarefas || [];
+            logsSalvos = parsed.l || parsed.logs || [];
+        }
+    } catch(e) {}
     
-    if(tarefas[indexTarefa]) {
-        tarefas[indexTarefa].ok = isChecked;
-        obra.obra_checklist = JSON.stringify(tarefas);
+    if(tarefasBase[indexTarefa]) {
+        tarefasBase[indexTarefa].ok = isChecked;
+        obra.obra_checklist = JSON.stringify({ t: tarefasBase, l: logsSalvos }); 
         
-        // Auto-Progresso Inteligente
-        if (tarefas.length > 0) {
-            const concluidas = tarefas.filter(t => t.ok).length;
-            obra.obra_progresso = Math.round((concluidas / tarefas.length) * 100);
+        if (tarefasBase.length > 0) {
+            const concluidas = tarefasBase.filter(tarefa => tarefa.ok).length;
+            obra.obra_progresso = Math.round((concluidas / tarefasBase.length) * 100);
             if (obra.obra_progresso === 100) obra.obra_status = "Concluído";
             else if (obra.obra_progresso > 0) obra.obra_status = "Em Execução";
         }
         
         window.sincronizarAtualizacaoNuvem(obra);
-        window.abrirDetalheObra(idObra); // Recarrega a tela da obra na hora
-        if (pracaAtivaId) window.atualizarInterfaceEMapa(); // Atualiza a barra verde por trás
+        window.abrirDetalheObra(idObra); 
+        if (pracaAtivaId && typeof window.atualizarInterfaceEMapa === 'function') window.atualizarInterfaceEMapa(); 
     }
 };
 
@@ -4447,15 +4647,23 @@ window.removerTarefaDireto = function(idObra, indexTarefa) {
     const obra = window.bancoDeDadosItens.find(o => o.id === idObra);
     if(!obra) return;
     
-    let tarefas = [];
-    try { tarefas = JSON.parse(obra.obra_checklist || '[]'); } catch(e) {}
+    let tarefasBase = [];
+    let logsSalvos = [];
+    try { 
+        let parsed = JSON.parse(obra.obra_checklist || '[]'); 
+        if (Array.isArray(parsed)) tarefasBase = parsed;
+        else {
+            tarefasBase = parsed.t || parsed.tarefas || [];
+            logsSalvos = parsed.l || parsed.logs || [];
+        }
+    } catch(e) {}
     
-    tarefas.splice(indexTarefa, 1);
-    obra.obra_checklist = JSON.stringify(tarefas);
+    tarefasBase.splice(indexTarefa, 1);
+    obra.obra_checklist = JSON.stringify({ t: tarefasBase, l: logsSalvos });
     
-    if (tarefas.length > 0) {
-        const concluidas = tarefas.filter(t => t.ok).length;
-        obra.obra_progresso = Math.round((concluidas / tarefas.length) * 100);
+    if (tarefasBase.length > 0) {
+        const concluidas = tarefasBase.filter(tarefa => tarefa.ok).length;
+        obra.obra_progresso = Math.round((concluidas / tarefasBase.length) * 100);
         if (obra.obra_progresso === 100) obra.obra_status = "Concluído";
         else if (obra.obra_progresso > 0) obra.obra_status = "Em Execução";
     } else {
@@ -4467,6 +4675,89 @@ window.removerTarefaDireto = function(idObra, indexTarefa) {
     window.abrirDetalheObra(idObra); 
     if (pracaAtivaId && typeof window.atualizarInterfaceEMapa === 'function') window.atualizarInterfaceEMapa(); 
 };
+
+// --- MOTOR DE HISTÓRICO DE OBRAS (TIMELINE) ---
+window.abrirModalLogObra = function(idObra) {
+    const obra = window.bancoDeDadosItens.find(o => o.id === idObra);
+    if (!obra) return;
+
+    let logs = [];
+    try { 
+        let parsed = JSON.parse(obra.obra_checklist || '{}'); 
+        if (parsed.l) logs = parsed.l; // Extrai o log minificado da nuvem!
+        else if (parsed.logs) logs = parsed.logs;
+    } catch(e) {}
+
+    const modalExistente = document.getElementById('modal-log-obra');
+    if (modalExistente) modalExistente.remove();
+
+    let logsHTML = '';
+    if (logs.length === 0) {
+        logsHTML = '<p class="text-[11px] text-slate-400 text-center py-6 italic border border-dashed border-slate-200 rounded-xl">Nenhum registro de alteração encontrado.</p>';
+    } else {
+        // Inverte a ordem para o mais recente ficar no topo
+        logs.slice().reverse().forEach((log, index) => {
+            const isCriacao = log.a === 'Criação';
+            const corIcone = isCriacao ? 'text-emerald-500 bg-emerald-100' : 'text-blue-500 bg-blue-100';
+            const icone = isCriacao 
+                ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"></path></svg>`
+                : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>`;
+
+            const linhaTimeline = index !== logs.length - 1 ? '<div class="absolute top-8 bottom-[-16px] left-[15px] w-0.5 bg-slate-100"></div>' : '';
+
+            // O sistema transforma o "código secreto" num visual executivo apenas aqui:
+            let detalhesHTML = "";
+            if (log.m && log.m.length > 0) {
+                detalhesHTML = "<ul class='list-disc pl-4 mt-1 space-y-0.5 text-slate-500 font-medium'>" + log.m.map(msg => {
+                    // Pinta o novo valor de verde se tiver a setinha "➔"
+                    if (msg.includes(' ➔ ')) {
+                        const partes = msg.split(' ➔ ');
+                        return `<li>${partes[0]} ➔ <span class="text-emerald-600 font-bold">${partes[1]}</span></li>`;
+                    }
+                    return `<li>${msg}</li>`;
+                }).join('') + "</ul>";
+            } else {
+                detalhesHTML = "<span class='text-slate-500 font-medium'>Dados estruturais atualizados.</span>";
+            }
+
+            logsHTML += `
+                <div class="relative flex gap-3 mb-4">
+                    ${linhaTimeline}
+                    <div class="relative z-10 w-8 h-8 rounded-full ${corIcone} flex items-center justify-center shrink-0 shadow-sm border border-white">
+                        ${icone}
+                    </div>
+                    <div class="flex-1 bg-slate-50 border border-slate-100 p-3.5 rounded-xl shadow-sm hover:border-slate-200 transition-colors">
+                        <div class="flex justify-between items-center mb-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-700">${log.a || log.acao}</span>
+                            <span class="text-[9px] text-slate-400 font-bold bg-white px-2 py-0.5 rounded border border-slate-100 shadow-sm">${log.d || log.dataHora}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-600 leading-relaxed">${detalhesHTML}</div>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="modal-log-obra" class="fixed inset-0 z-[9999999] bg-black/60 flex items-center justify-center backdrop-blur-sm transition-opacity">
+      <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col max-h-[85vh] mx-4 relative overflow-hidden border border-slate-200">
+        
+        <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-5 shrink-0">
+          <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Histórico da Obra
+          </h3>
+          <button onclick="document.getElementById('modal-log-obra').remove()" class="text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 p-1.5 rounded-lg transition-all">&times;</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto pr-2 pb-2">
+            ${logsHTML}
+        </div>
+        
+      </div>
+    </div>`);
+};
+
 
 // =====================================================================
         // MOTOR DO VISUALIZADOR DE FOTOS EM TELA CHEIA
@@ -4641,3 +4932,5 @@ window.removerTarefaDireto = function(idObra, indexTarefa) {
             if (e.key === 'ArrowLeft') window.mudarFotoVisualizador(-1);
             if (e.key === 'Escape') window.fecharVisualizadorFotos();
         };
+
+        
